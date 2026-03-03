@@ -84,6 +84,7 @@ app.use('*', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
+  console.log("hello server")
   console.log(`✅ Server running on port ${PORT}`);
   console.log(`✅ WebSocket running on port ${process.env.SOCKET_PORT || 5001}`);
 });
