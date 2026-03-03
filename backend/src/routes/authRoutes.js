@@ -9,14 +9,18 @@ const {
   forgotPassword,
   resetPassword,
   verifyEmail,
-  logout
+  logout,
+  verifyOTP,
+  resendOTP
 } = require('../controllers/authController');
 
 router.post('/register', validate(registerValidation), register);
 router.post('/login', validate(loginValidation), login);
 router.get('/me', protect, getMe);
 router.post('/forgot-password', forgotPassword);
-router.post('/reset-password/:token', resetPassword);
+router.post('/reset-password', resetPassword);
+router.post('/verify-otp', verifyOTP);
+router.post('/resend-otp', resendOTP);
 router.get('/verify-email/:token', verifyEmail);
 router.post('/logout', protect, logout);
 

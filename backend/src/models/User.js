@@ -173,7 +173,15 @@ userSchema.methods.generateOTP = function() {
   
   return otp; // Return plain OTP to send via email (always 4 digits)
 };
-
+userSchema.methods.compareOTP = function(candidateOTP) {
+  // Hash candidate OTP and compare with stored hash
+  const hashedCandidate = crypto
+    .createHash('sha256')
+    .update(candidateOTP.toString())
+    .digest('hex');
+  
+  return hashedCandidate === this.otp;
+};
 // Add OTP verification method
 userSchema.methods.verifyOTP = function(enteredOTP) {
   // Check if OTP exists and not expired

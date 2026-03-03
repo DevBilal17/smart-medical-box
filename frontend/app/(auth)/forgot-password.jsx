@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -18,15 +18,15 @@ import { z } from 'zod';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useForgotPasswordMutation } from '../../src/store/api/authApi';
+import { setItem } from '../../src/utils/asyncStorage';
 
 const forgotPasswordSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Please enter a valid email'),
 });
 
-export default function ForgotPassword() {
-  const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState('request'); // request, verify, reset
-  const [forgotPassword,{isLoading:forgotPasswordLoading,error}] = useForgotPasswordMutation()
+export default function ForgotPasswordRequest() {
+  const [forgotPassword, { isLoading }] = useForgotPasswordMutation();
+  
   const {
     control,
     handleSubmit,
@@ -38,20 +38,18 @@ export default function ForgotPassword() {
 
   const onSubmit = async (data) => {
     try {
-        const response = await forgotPassword(data).unwrap();
-        console.log(response)
-        console.log(error)
-        setStep('verify');
+      await forgotPassword(data).unwrap();
+      Alert.alert('Success', 'Reset code has been sent to your email');
+      await setItem("userEmail",data.email)
+      // Navigate to verify screen with email param
+      router.push({
+        pathname: '/(auth)/forgot-password-verify',
+        params: { email: data.email }
+      });
     } catch (error) {
-      console.log(error)
+      Alert.alert('Error', error?.data?.message || 'Failed to send reset code');
     }
   };
-
-  if (step === 'verify') {
-    return (
-      <VerifyCodeScreen onBack={() => setStep('request')} />
-    );
-  }
 
   return (
     <KeyboardAvoidingView
@@ -89,6 +87,7 @@ export default function ForgotPassword() {
                     value={value}
                     keyboardType="email-address"
                     autoCapitalize="none"
+                    editable={!isLoading}
                   />
                 )}
               />
@@ -99,9 +98,9 @@ export default function ForgotPassword() {
           <TouchableOpacity
             style={styles.resetButton}
             onPress={handleSubmit(onSubmit)}
-            disabled={forgotPasswordLoading}
+            disabled={isLoading}
           >
-            {forgotPasswordLoading ? (
+            {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.buttonText}>Send Reset Code</Text>
@@ -116,74 +115,6 @@ export default function ForgotPassword() {
     </KeyboardAvoidingView>
   );
 }
-
-const VerifyCodeScreen = ({ onBack }) => {
-  const [code, setCode] = useState(['', '', '', '']);
-  const [loading, setLoading] = useState(false);
-
-  const handleVerify = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      Alert.alert('Success', 'Password reset successfully');
-      router.replace('/(auth)/login');
-    }, 1500);
-  };
-
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={onBack}>
-          <Icon name="arrow-left" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Verify Code</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      <View style={styles.verifyContainer}>
-        <Text style={styles.verifyText}>
-          Enter the 4-digit code sent to your email
-        </Text>
-
-        <View style={styles.codeContainer}>
-          {code.map((digit, index) => (
-            <TextInput
-              key={index}
-              style={styles.codeInput}
-              value={digit}
-              onChangeText={(text) => {
-                const newCode = [...code];
-                newCode[index] = text;
-                setCode(newCode);
-                if (text && index < 3) {
-                  // Focus next input
-                }
-              }}
-              keyboardType="numeric"
-              maxLength={1}
-            />
-          ))}
-        </View>
-
-        <TouchableOpacity
-          style={styles.verifyButton}
-          onPress={handleVerify}
-          disabled={loading || code.some(d => !d)}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Verify Code</Text>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity>
-          <Text style={styles.resendText}>Resend Code</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-};
 
 const styles = StyleSheet.create({
   container: {
@@ -268,47 +199,6 @@ const styles = StyleSheet.create({
     color: '#3498db',
     textAlign: 'center',
     marginTop: 20,
-    fontSize: 14,
-  },
-  verifyContainer: {
-    flex: 1,
-    padding: 20,
-    justifyContent: 'center',
-  },
-  verifyText: {
-    fontSize: 16,
-    color: '#2c3e50',
-    textAlign: 'center',
-    marginBottom: 30,
-  },
-  codeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: 30,
-  },
-  codeInput: {
-    width: 60,
-    height: 60,
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
-    borderRadius: 10,
-    marginHorizontal: 5,
-    textAlign: 'center',
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    backgroundColor: '#fff',
-  },
-  verifyButton: {
-    backgroundColor: '#3498db',
-    paddingVertical: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  resendText: {
-    color: '#3498db',
-    textAlign: 'center',
     fontSize: 14,
   },
 });

@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../../utils/constants';
 // Base query with token handling
 const baseQuery = fetchBaseQuery({
-  baseUrl: 'http://10.62.32.130:5000/api', // Replace with your backend URL
+  baseUrl: 'http://10.173.231.123:5000/api', // Replace with your backend URL
   prepareHeaders: async (headers) => {
     const token = await AsyncStorage.getItem('token');
     if (token) {
@@ -68,6 +68,34 @@ export const authApi = createApi({
       }),
     }),
 
+    //Verify OTP
+    verifyOTP:builder.mutation({
+      query: (userData) => ({
+        url: '/auth/verify-otp',
+        method: 'POST',
+        body: userData,
+      }),
+    }),
+
+    //Verify OTP
+    resendOTP:builder.mutation({
+      query: (userData) => ({
+        url: '/auth/resend-otp',
+        method: 'POST',
+        body: userData,
+      }),
+    }),
+
+     //Verify OTP
+    resetPassword: builder.mutation({
+      query: (userData) => ({
+        url: '/auth/reset-password',
+        method: 'POST',
+        body: userData,
+      }),
+    }),
+
+
     // Get current user
     getCurrentUser: builder.query({
       queryFn: async () => {
@@ -90,5 +118,8 @@ export const {
   useRegisterMutation,
   useLogoutMutation,
   useGetCurrentUserQuery,
-  useForgotPasswordMutation
+  useForgotPasswordMutation,
+  useResendOTPMutation,
+  useVerifyOTPMutation,
+  useResetPasswordMutation
 } = authApi;
