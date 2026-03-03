@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-
+const crypto = require("crypto")
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -92,6 +92,19 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  otp: {
+    type: String,
+    select: false
+  },
+  otpExpire: {
+    type: Date,
+    select: false
+  },
+  otpAttempts: {
+    type: Number,
+    default: 0,
+    select: false
+  },
   emailVerificationToken: String,
   notificationPreferences: {
     email: { type: Boolean, default: true },
@@ -140,4 +153,63 @@ userSchema.methods.generateResetToken = function() {
   return resetToken;
 };
 
-module.exports = mongoose.model('User', userSchema);
+
+// Add OTP generation method
+userSchema.methods.generateOTP = function() {
+  // Generate 4-digit OTP (from 0 to 9999) and pad with leading zeros
+  const otp = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  
+  // Hash OTP before storing (for security)
+  this.otp = crypto
+    .createHash('sha256')
+    .update(otp)
+    .digest('hex');
+  
+  // Set OTP expiry (10 minutes)
+  this.otpExpire = Date.now() + 10 * 60 * 1000;
+  
+  // Reset attempts
+  this.otpAttempts = 0;
+  
+  return otp; // Return plain OTP to send via email (always 4 digits)
+};
+
+// Add OTP verification method
+userSchema.methods.verifyOTP = function(enteredOTP) {
+  // Check if OTP exists and not expired
+  if (!this.otp || !this.otpExpire) {
+    return { valid: false, message: 'No OTP found' };
+  }
+  
+  if (Date.now() > this.otpExpire) {
+    return { valid: false, message: 'OTP expired' };
+  }
+  
+  // Check attempts (max 3 attempts)
+  if (this.otpAttempts >= 3) {
+    return { valid: false, message: 'Maximum attempts exceeded' };
+  }
+  
+  // Hash entered OTP for comparison
+  const hashedOTP = crypto
+    .createHash('sha256')
+    .update(enteredOTP)
+    .digest('hex');
+  
+  // Verify OTP
+  if (hashedOTP !== this.otp) {
+    this.otpAttempts += 1;
+    return { valid: false, message: 'Invalid OTP' };
+  }
+  
+  // Clear OTP after successful verification
+  this.otp = undefined;
+  this.otpExpire = undefined;
+  this.otpAttempts = 0;
+  
+  return { valid: true, message: 'OTP verified successfully' };
+};
+
+const User = mongoose.model('User', userSchema);
+
+module.exports = User

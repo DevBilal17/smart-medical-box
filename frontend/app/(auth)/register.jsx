@@ -45,7 +45,7 @@ export default function Register() {
 
   const onSubmit = async (data) => {
     try {
-      // const response = await register(data).unwrap();
+      const response = await register(data).unwrap();
       
       Alert.alert('Success', 'Registration successful!', [
         {

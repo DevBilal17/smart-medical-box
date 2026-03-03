@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../../utils/constants';
 // Base query with token handling
 const baseQuery = fetchBaseQuery({
-  baseUrl: 'http://192.168.1.100:5000/api', // Replace with your backend URL
+  baseUrl: 'http://10.62.32.130:5000/api', // Replace with your backend URL
   prepareHeaders: async (headers) => {
     const token = await AsyncStorage.getItem('token');
     if (token) {
@@ -59,6 +59,15 @@ export const authApi = createApi({
       invalidatesTags: ['User'],
     }),
 
+    // Forgot Password
+    forgotPassword: builder.mutation({
+      query: (userData) => ({
+        url: '/auth/forgot-password',
+        method: 'POST',
+        body: userData,
+      }),
+    }),
+
     // Get current user
     getCurrentUser: builder.query({
       queryFn: async () => {
@@ -81,4 +90,5 @@ export const {
   useRegisterMutation,
   useLogoutMutation,
   useGetCurrentUserQuery,
+  useForgotPasswordMutation
 } = authApi;

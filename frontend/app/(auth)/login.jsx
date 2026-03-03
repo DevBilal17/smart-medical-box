@@ -37,15 +37,15 @@ export default function Login() {
 
   const onSubmit = async (data) => {
     try {
-      // const response = await login(data).unwrap();
+      const response = await login(data).unwrap();
 
-      // if (response.user.role === 'patient') {
-      //   router.replace('/(app)/(patient)');
-      // } else {
-      //   router.replace('/(app)/(doctor)');
-      // }
+      if (response.user.role === 'patient') {
+        router.replace('/(app)/(patient)');
+      } else {
+        router.replace('/(app)/(doctor)');
+      }
       // router.replace('/(app)/(doctor)');
-      router.replace('/(app)/(patient)');
+      // router.replace('/(app)/(patient)');
     } catch (error) {
       Alert.alert(
         'Login Failed',
@@ -136,7 +136,7 @@ export default function Login() {
             )}
           </View>
 
-          <TouchableOpacity style={styles.forgotPassword}>
+          <TouchableOpacity style={styles.forgotPassword} onPress={()=>router.push("/forgot-password")}>
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
 

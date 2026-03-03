@@ -17,6 +17,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useForgotPasswordMutation } from '../../src/store/api/authApi';
 
 const forgotPasswordSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Please enter a valid email'),
@@ -25,7 +26,7 @@ const forgotPasswordSchema = z.object({
 export default function ForgotPassword() {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState('request'); // request, verify, reset
-
+  const [forgotPassword,{isLoading:forgotPasswordLoading,error}] = useForgotPasswordMutation()
   const {
     control,
     handleSubmit,
@@ -36,14 +37,14 @@ export default function ForgotPassword() {
   });
 
   const onSubmit = async (data) => {
-    setLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
-      setStep('verify');
-      Alert.alert('Success', 'Reset code sent to your email');
-    }, 1500);
+    try {
+        const response = await forgotPassword(data).unwrap();
+        console.log(response)
+        console.log(error)
+        setStep('verify');
+    } catch (error) {
+      console.log(error)
+    }
   };
 
   if (step === 'verify') {
@@ -98,9 +99,9 @@ export default function ForgotPassword() {
           <TouchableOpacity
             style={styles.resetButton}
             onPress={handleSubmit(onSubmit)}
-            disabled={loading}
+            disabled={forgotPasswordLoading}
           >
-            {loading ? (
+            {forgotPasswordLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.buttonText}>Send Reset Code</Text>

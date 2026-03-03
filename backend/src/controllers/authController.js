@@ -1,7 +1,8 @@
-const User = require('../models/Device');
+
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { sendEmail } = require('../utils/emailService');
+const User = require('../models/User');
 
 // Generate token
 const generateToken = (id) => {
@@ -35,21 +36,21 @@ const register = async (req, res) => {
     });
 
     // Generate email verification token
-    const verificationToken = crypto.randomBytes(32).toString('hex');
-    user.emailVerificationToken = crypto
-      .createHash('sha256')
-      .update(verificationToken)
-      .digest('hex');
-    await user.save();
+    // const verificationToken = crypto.randomBytes(32).toString('hex');
+    // user.emailVerificationToken = crypto
+    //   .createHash('sha256')
+    //   .update(verificationToken)
+    //   .digest('hex');
+    // await user.save();
 
-    // Send verification email
-    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
-    await sendEmail({
-      email: user.email,
-      subject: 'Verify Your Email',
-      template: 'emailVerification',
-      data: { name: user.name, verificationUrl }
-    });
+    // // Send verification email
+    // const verificationUrl = `${process.env.FRONTEND_URL}/verify-email/${verificationToken}`;
+    // await sendEmail({
+    //   email: user.email,
+    //   subject: 'Verify Your Email',
+    //   template: 'emailVerification',
+    //   data: { name: user.name, verificationUrl }
+    // });
 
     // Generate token
     const token = generateToken(user._id);
@@ -149,32 +150,34 @@ const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select('+otp +otpExpire +otpAttempts');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Generate reset token
-    const resetToken = crypto.randomBytes(20).toString('hex');
-    user.resetPasswordToken = crypto
-      .createHash('sha256')
-      .update(resetToken)
-      .digest('hex');
-    user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+    // Generate OTP
+    const otp = user.generateOTP();
     await user.save();
 
-    // Send email
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+    // Send OTP via email
     await sendEmail({
       email: user.email,
-      subject: 'Password Reset Request',
-      template: 'passwordReset',
-      data: { name: user.name, resetUrl }
+      subject: 'Password Reset OTP',
+      template: 'passwordResetOTP',
+      data: { 
+        name: user.name, 
+        otp: otp, // Send plain OTP
+        expiryMinutes: 10
+      }
     });
 
-    res.json({ success: true, message: 'Password reset email sent' });
+    res.json({ 
+      success: true, 
+      message: 'OTP sent to your email',
+      expiresIn: '10 minutes'
+    });
   } catch (error) {
-    console.error(error);
+    console.error('Forgot password error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
