@@ -88,7 +88,7 @@ export default function PatientsList() {
       </View>
 
       {/* Filter Chips */}
-      <ScrollView 
+      {/* <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false}
         style={styles.filterContainer}
@@ -112,7 +112,7 @@ export default function PatientsList() {
             </Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+      </ScrollView> */}
 
       {/* Summary Stats */}
       <View style={styles.statsRow}>
@@ -120,7 +120,7 @@ export default function PatientsList() {
           <Text style={styles.statNumber}>{patients.length}</Text>
           <Text style={styles.statLabel}>Total</Text>
         </View>
-        <View style={styles.statBox}>
+        {/* <View style={styles.statBox}>
           <Text style={[styles.statNumber, { color: '#e74c3c' }]}>
             {patients.filter(p => p.status === 'critical').length}
           </Text>
@@ -137,7 +137,7 @@ export default function PatientsList() {
             {patients.filter(p => p.status === 'stable').length}
           </Text>
           <Text style={styles.statLabel}>Stable</Text>
-        </View>
+        </View> */}
       </View>
 
       <ScrollView
@@ -154,7 +154,7 @@ export default function PatientsList() {
               style={styles.patientCard}
               onPress={() => router.push({
                 pathname: '/(app)/(doctor)/patients/[id]',
-                params: { id: patient.id }
+                params: { id: patient._id }
               })}
             >
               <LinearGradient
@@ -461,3 +461,31 @@ const styles = StyleSheet.create({
     color: '#7f8c8d',
   },
 });
+
+
+
+
+// filterChip: {
+//   paddingHorizontal: 12,
+//   paddingVertical: 6, // slightly smaller
+//   borderRadius: 20,
+//   backgroundColor: '#fff',
+//   borderWidth: 1,
+//   borderColor: '#ccc', // default border
+//   marginRight: 10,
+//   height: 32, // ensure uniform height
+//   justifyContent: 'center',
+//   alignItems: 'center',
+// },
+// filterChipActive: {
+//   backgroundColor: '#3498db',
+//   borderColor: '#3498db',
+// },
+// filterChipText: {
+//   fontSize: 12,
+//   fontWeight: '500',
+//   color: '#2c3e50',
+// },
+// filterChipTextActive: {
+//   color: '#fff',
+// },

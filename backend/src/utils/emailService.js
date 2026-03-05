@@ -33,6 +33,91 @@ const sendEmail = async ({ email, subject, template, data }) => {
         <p>If you didn't request this, please ignore this email.</p>
       `;
     } 
+    else if (template === 'welcomePatient') {
+  html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          background: #f4f4f4;
+          padding: 20px;
+        }
+        .container {
+          max-width: 600px;
+          margin: auto;
+          background: white;
+          padding: 30px;
+          border-radius: 10px;
+        }
+        .header {
+          background: #4CAF50;
+          color: white;
+          padding: 20px;
+          text-align: center;
+          border-radius: 10px 10px 0 0;
+        }
+        .content {
+          padding: 20px;
+        }
+        .box {
+          background: #f9f9f9;
+          border: 1px solid #ddd;
+          padding: 15px;
+          margin-top: 15px;
+          border-radius: 5px;
+        }
+        .otp {
+          font-size: 28px;
+          font-weight: bold;
+          color: #4CAF50;
+          letter-spacing: 5px;
+        }
+      </style>
+    </head>
+
+    <body>
+      <div class="container">
+
+        <div class="header">
+          <h1>Welcome to Smart Medical Box</h1>
+        </div>
+
+        <div class="content">
+
+          <p>Hello <b>${data.name}</b>,</p>
+
+          <p>Your doctor <b>${data.doctorName}</b> has created your patient account.</p>
+
+          <div class="box">
+            <p><b>Login Email:</b> ${data.email}</p>
+            <p><b>Password:</b> ${data.password}</p>
+          </div>
+
+          <p>Please verify your account using the OTP below:</p>
+
+          <div class="box" style="text-align:center">
+            <p>Your Verification OTP</p>
+            <div class="otp">${data.otp}</div>
+          </div>
+
+          <p>This OTP will expire soon.</p>
+
+          <p>After verification, you can login to your account.</p>
+
+          <br>
+
+          <p>Best Regards,<br>Smart Medical Box Team</p>
+
+        </div>
+
+      </div>
+    </body>
+    </html>
+  `;
+}
     else if (template === 'passwordResetOTP') {
   html = `
     <!DOCTYPE html>

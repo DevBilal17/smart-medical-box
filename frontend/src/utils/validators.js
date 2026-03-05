@@ -47,3 +47,41 @@ export const registerSchema = z
     message: 'Passwords do not match',
     path: ['confirmPassword'],
   });
+
+
+
+
+
+export const patientSchema = z.object({
+  name: z.string().min(3, "Name required"),
+
+  email: z.string().email("Invalid email"),
+
+  phone: z.string().min(10, "Phone required"),
+
+  age: z.string().min(1, "Age required"),
+
+  gender: z.enum(["male", "female", "other"]),
+
+  bloodGroup: z.enum([
+    "A+","A-","B+","B-","AB+","AB-","O+","O-"
+  ]),
+
+  allergies: z.array(z.string()).optional(),
+
+  medicalConditions: z.array(z.string()).optional(),
+
+  address: z.object({
+    street: z.string(),
+    city: z.string(),
+    state: z.string(),
+    zipCode: z.string(),
+    country: z.string(),
+  }).optional(),
+
+  emergencyContact: z.object({
+    name: z.string(),
+    relationship: z.string(),
+    phone: z.string(),
+  }).optional(),
+});

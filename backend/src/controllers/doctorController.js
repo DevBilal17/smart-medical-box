@@ -4,6 +4,7 @@ const Prescription = require('../models/Prescription');
 const Alert = require('../models/Alert');
 const Device = require('../models/Device');
 const moment = require('moment');
+const { sendEmail } = require('../utils/emailService');
 
 // @desc    Get all patients assigned to doctor
 // @route   GET /api/doctor/patients
@@ -333,7 +334,7 @@ const createPrescription = async (req, res) => {
     });
 
     // Send email notification to patient
-    const { sendEmail } = require('../utils/emailService');
+
     await sendEmail({
       email: patient.email,
       subject: 'New Prescription Created',
@@ -543,7 +544,6 @@ const sendMessage = async (req, res) => {
 
     // Send email for important messages
     if (type === 'important') {
-      const { sendEmail } = require('../utils/emailService');
       await sendEmail({
         email: patient.email,
         subject: 'Important Message from Your Doctor',
@@ -657,6 +657,135 @@ const calculateAdherence = (prescriptions) => {
   return total === 0 ? 0 : Math.round((taken / total) * 100);
 };
 
+
+// @desc    Add new patient and assign to doctor
+// @route   POST /api/doctor/create-patient
+// @access  Private (Doctor)
+const addPatient = async (req, res) => {
+  try {
+    const doctorId = req.userId;
+    const {
+      name,
+      email,
+      phone,
+      password,
+      age,
+      gender,
+      bloodGroup,
+      allergies,
+      medicalConditions,
+      address,
+      emergencyContact
+    } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !phone) {
+      return res.status(400).json({
+        message: 'Please provide at least name, email, and phone'
+      });
+    }
+
+    // Check if patient with email already exists
+    const existingPatient = await User.findOne({ email });
+    if (existingPatient) {
+      return res.status(400).json({ 
+        message: 'Patient with this email already exists' 
+      });
+    }
+
+    // Check if phone number is already registered
+    const existingPhone = await User.findOne({ phone });
+    if (existingPhone) {
+      return res.status(400).json({ 
+        message: 'Patient with this phone number already exists' 
+      });
+    }
+
+    // Generate temporary password if not provided
+    const tempPassword = password || Math.random().toString(36).slice(-8);
+
+    // Create new patient
+    const patient = await User.create({
+      name,
+      email,
+      password: tempPassword, // hashed by pre-save hook
+      phone,
+      role: 'patient',
+      age: age || null,
+      gender: gender || null,
+      bloodGroup: bloodGroup || null,
+      allergies: allergies || [],
+      medicalConditions: medicalConditions || [],
+      address: address || {},
+      emergencyContact: emergencyContact || {},
+      assignedDoctor: doctorId,
+      isActive: true,
+      emailVerified: false
+    });
+
+    // Prepare patient object for response
+    const patientResponse = patient.toObject();
+    delete patientResponse.password;
+    delete patientResponse.otp;
+    delete patientResponse.otpExpire;
+    delete patientResponse.resetPasswordToken;
+    delete patientResponse.resetPasswordExpire;
+
+    // Send welcome email
+    await sendEmail({
+      email: patient.email,
+      subject: 'Welcome to Health Monitoring System',
+      template: 'welcomePatient', // your original template
+      data: {
+        name: patient.name,
+        doctorName: req.user?.name || 'Your Doctor',
+        email: patient.email,
+        password: tempPassword
+      }
+    });
+
+    // Notify doctor via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`doctor-${doctorId}`).emit('patientAdded', {
+        patientId: patient._id,
+        patientName: patient.name
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Patient added successfully',
+      data: patientResponse
+    });
+
+  } catch (error) {
+    console.error('Error adding patient:', error);
+
+    // Duplicate key error
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(400).json({ 
+        message: `Patient with this ${field} already exists` 
+      });
+    }
+
+    // Validation errors
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({ 
+        message: 'Validation error', 
+        errors: messages 
+      });
+    }
+
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+module.exports = { addPatient };
+
+
 module.exports = {
   getPatients,
   getPatientDetails,
@@ -666,5 +795,6 @@ module.exports = {
   getAlerts,
   updateAlertStatus,
   sendMessage,
-  getPatientReport
+  getPatientReport,
+  addPatient
 };

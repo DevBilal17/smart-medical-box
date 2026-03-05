@@ -41,3 +41,6 @@ export const ROLES = {
   PATIENT: 'patient',
   DOCTOR: 'doctor'
 };
+
+
+export const API_BASE_URL = 'http://10.173.231.123:5000/'

@@ -10,7 +10,8 @@ const {
   getAlerts,
   updateAlertStatus,
   sendMessage,
-  getPatientReport
+  getPatientReport,
+  addPatient
 } = require('../controllers/doctorController');
 
 // All routes require authentication and doctor role
@@ -22,6 +23,9 @@ router.get('/patients', getPatients);
 router.get('/patients/:patientId', getPatientDetails);
 router.get('/patients/:patientId/health-data', getPatientHealthData);
 router.get('/patients/:patientId/report', getPatientReport);
+
+//Add patients
+router.post("/create-patient",protect,authorize("doctor"),addPatient)
 
 // Prescription routes
 router.post('/prescriptions', createPrescription);
