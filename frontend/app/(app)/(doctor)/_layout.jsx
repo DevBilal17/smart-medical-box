@@ -38,6 +38,7 @@ export default function DoctorLayout() {
         }}
       />
       <Tabs.Screen name="patients/[id]" options={{ href: null }} />
+      <Tabs.Screen name="patients/add" options={{ href: null }} />
       <Tabs.Screen
         name="prescriptions/index"
         options={{
@@ -48,6 +49,16 @@ export default function DoctorLayout() {
         }}
       />
      <Tabs.Screen name="prescriptions/new" options={{ href: null }} /> 
+        <Tabs.Screen
+        name="medicines/index"
+        options={{
+          title: "Medicines",
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="pill" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen name="medicines/add" options={{ href: null }} /> 
       <Tabs.Screen
         name="alerts/index"
         options={{

@@ -85,3 +85,21 @@ export const patientSchema = z.object({
     phone: z.string(),
   }).optional(),
 });
+
+
+
+export const medicineSchema = z.object({
+  name: z.string().min(1, 'Medicine name is required'),
+  category: z.string().min(1, 'Category is required'),
+  manufacturer: z.string().optional(),
+  price: z.string().min(1, 'Price is required').refine((val) => !isNaN(Number(val)) && Number(val) > 0, {
+    message: 'Price must be a positive number',
+  }),
+  stock: z.string().min(1, 'Stock is required').refine((val) => !isNaN(Number(val)) && Number(val) >= 0, {
+    message: 'Stock must be a non-negative number',
+  }),
+  dosage: z.string().optional(),
+  description: z.string().optional(),
+  expiryDate: z.date().optional().nullable(),
+  requiresPrescription: z.boolean().default(false),
+});

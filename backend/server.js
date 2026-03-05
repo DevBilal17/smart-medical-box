@@ -14,7 +14,7 @@ const patientRoutes = require('./src/routes/patientRoutes');
 const doctorRoutes = require('./src/routes/doctorRoutes');
 const deviceRoutes = require('./src/routes/deviceRoutes');
 const alertRoutes = require('./src/routes/alertRoutes');
-
+const medicineRoutes = require('./src/routes/medicineRoutes');
 // Import socket handler
 const { initializeSocket } = require('./src/sockets/socketHandler');
 
@@ -63,6 +63,7 @@ app.use('/api/patient', patientRoutes);
 app.use('/api/doctor', doctorRoutes);
 app.use('/api/device', deviceRoutes);
 app.use('/api/alerts', alertRoutes);
+app.use('/api/medicines', medicineRoutes);
 
 // Health check route
 app.get('/health', (req, res) => {

@@ -1,38 +1,38 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_BASE_URL } from '../../utils/constants';
+import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { API_BASE_URL } from "../../utils/constants";
 
 export const doctorApi = createApi({
-  reducerPath: 'doctorApi',
+  reducerPath: "doctorApi",
   baseQuery: fetchBaseQuery({
     baseUrl: `${API_BASE_URL}api/doctor`,
     prepareHeaders: async (headers) => {
-      const token = await AsyncStorage.getItem('token');
+      const token = await AsyncStorage.getItem("token");
       if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
+        headers.set("Authorization", `Bearer ${token}`);
       }
       return headers;
     },
   }),
   tagTypes: [
-    'Patients', 
-    'PatientDetails', 
-    'Prescriptions', 
-    'Alerts', 
-    'Dashboard',
-    'Messages',
-    'Statistics',
-    'Appointments',
-    'Schedule',
-    'Profile',
-    'Settings',
-    'UnassignedPatients'
+    "Patients",
+    "PatientDetails",
+    "Prescriptions",
+    "Alerts",
+    "Dashboard",
+    "Messages",
+    "Statistics",
+    "Appointments",
+    "Schedule",
+    "Profile",
+    "Settings",
+    "UnassignedPatients",
   ],
   endpoints: (builder) => ({
     // ========== DASHBOARD ==========
     getDoctorDashboard: builder.query({
-      query: () => '/dashboard',
-      providesTags: ['Dashboard'],
+      query: () => "/dashboard",
+      providesTags: ["Dashboard"],
       transformResponse: (response) => response.data,
     }),
 
@@ -40,18 +40,18 @@ export const doctorApi = createApi({
     getPatients: builder.query({
       query: ({ search, page = 1, limit = 20 }) => {
         const params = new URLSearchParams();
-        if (search) params.append('search', search);
-        params.append('page', page);
-        params.append('limit', limit);
+        if (search) params.append("search", search);
+        params.append("page", page);
+        params.append("limit", limit);
         return `/patients?${params.toString()}`;
       },
       providesTags: (result) =>
         result?.data
           ? [
-              ...result.data.map(({ _id }) => ({ type: 'Patients', id: _id })),
-              { type: 'Patients', id: 'LIST' },
+              ...result.data.map(({ _id }) => ({ type: "Patients", id: _id })),
+              { type: "Patients", id: "LIST" },
             ]
-          : [{ type: 'Patients', id: 'LIST' }],
+          : [{ type: "Patients", id: "LIST" }],
       transformResponse: (response) => response,
     }),
 
@@ -59,31 +59,34 @@ export const doctorApi = createApi({
     getUnassignedPatients: builder.query({
       query: ({ search, page = 1, limit = 20 }) => {
         const params = new URLSearchParams();
-        if (search) params.append('search', search);
-        params.append('page', page);
-        params.append('limit', limit);
+        if (search) params.append("search", search);
+        params.append("page", page);
+        params.append("limit", limit);
         return `/patients/unassigned?${params.toString()}`;
       },
       providesTags: (result) =>
         result?.data
           ? [
-              ...result.data.map(({ _id }) => ({ type: 'UnassignedPatients', id: _id })),
-              { type: 'UnassignedPatients', id: 'LIST' },
+              ...result.data.map(({ _id }) => ({
+                type: "UnassignedPatients",
+                id: _id,
+              })),
+              { type: "UnassignedPatients", id: "LIST" },
             ]
-          : [{ type: 'UnassignedPatients', id: 'LIST' }],
+          : [{ type: "UnassignedPatients", id: "LIST" }],
       transformResponse: (response) => response,
     }),
 
     // Add single patient
     addPatient: builder.mutation({
       query: (patientData) => ({
-        url: '/create-patient',
-        method: 'POST',
+        url: "/create-patient",
+        method: "POST",
         body: patientData,
       }),
       invalidatesTags: [
-        { type: 'Patients', id: 'LIST' },
-        { type: 'Dashboard' },
+        { type: "Patients", id: "LIST" },
+        { type: "Dashboard" },
       ],
       transformResponse: (response) => response.data,
     }),
@@ -91,13 +94,13 @@ export const doctorApi = createApi({
     // Bulk import patients
     bulkImportPatients: builder.mutation({
       query: (patientsData) => ({
-        url: '/patients/bulk-import',
-        method: 'POST',
+        url: "/patients/bulk-import",
+        method: "POST",
         body: patientsData,
       }),
       invalidatesTags: [
-        { type: 'Patients', id: 'LIST' },
-        { type: 'Dashboard' },
+        { type: "Patients", id: "LIST" },
+        { type: "Dashboard" },
       ],
       transformResponse: (response) => response.data,
     }),
@@ -106,7 +109,7 @@ export const doctorApi = createApi({
     getPatientDetails: builder.query({
       query: (patientId) => `/patients/${patientId}`,
       providesTags: (result, error, patientId) => [
-        { type: 'PatientDetails', id: patientId },
+        { type: "PatientDetails", id: patientId },
       ],
       transformResponse: (response) => response.data,
     }),
@@ -115,29 +118,29 @@ export const doctorApi = createApi({
     updatePatient: builder.mutation({
       query: ({ patientId, ...updates }) => ({
         url: `/patients/${patientId}`,
-        method: 'PUT',
+        method: "PUT",
         body: updates,
       }),
       invalidatesTags: (result, error, { patientId }) => [
-        { type: 'PatientDetails', id: patientId },
-        { type: 'Patients', id: patientId },
-        { type: 'Patients', id: 'LIST' },
+        { type: "PatientDetails", id: patientId },
+        { type: "Patients", id: patientId },
+        { type: "Patients", id: "LIST" },
       ],
       transformResponse: (response) => response.data,
     }),
 
     // Remove patient (soft delete)
     removePatient: builder.mutation({
-      query: ({ patientId, action = 'deactivate', reason }) => ({
+      query: ({ patientId, action = "deactivate", reason }) => ({
         url: `/patients/${patientId}`,
-        method: 'DELETE',
+        method: "DELETE",
         body: { action, reason },
       }),
       invalidatesTags: (result, error, { patientId }) => [
-        { type: 'PatientDetails', id: patientId },
-        { type: 'Patients', id: patientId },
-        { type: 'Patients', id: 'LIST' },
-        { type: 'Dashboard' },
+        { type: "PatientDetails", id: patientId },
+        { type: "Patients", id: patientId },
+        { type: "Patients", id: "LIST" },
+        { type: "Dashboard" },
       ],
       transformResponse: (response) => response.data,
     }),
@@ -146,14 +149,14 @@ export const doctorApi = createApi({
     transferPatient: builder.mutation({
       query: ({ patientId, newDoctorId, reason }) => ({
         url: `/patients/${patientId}/transfer`,
-        method: 'POST',
+        method: "POST",
         body: { newDoctorId, reason },
       }),
       invalidatesTags: (result, error, { patientId }) => [
-        { type: 'PatientDetails', id: patientId },
-        { type: 'Patients', id: patientId },
-        { type: 'Patients', id: 'LIST' },
-        { type: 'Dashboard' },
+        { type: "PatientDetails", id: patientId },
+        { type: "Patients", id: patientId },
+        { type: "Patients", id: "LIST" },
+        { type: "Dashboard" },
       ],
       transformResponse: (response) => response.data,
     }),
@@ -162,12 +165,12 @@ export const doctorApi = createApi({
     assignPatient: builder.mutation({
       query: (patientId) => ({
         url: `/patients/${patientId}/assign`,
-        method: 'POST',
+        method: "POST",
       }),
       invalidatesTags: [
-        { type: 'Patients', id: 'LIST' },
-        { type: 'UnassignedPatients', id: 'LIST' },
-        { type: 'Dashboard' },
+        { type: "Patients", id: "LIST" },
+        { type: "UnassignedPatients", id: "LIST" },
+        { type: "Dashboard" },
       ],
       transformResponse: (response) => response.data,
     }),
@@ -176,12 +179,12 @@ export const doctorApi = createApi({
     unassignPatient: builder.mutation({
       query: (patientId) => ({
         url: `/patients/${patientId}/unassign`,
-        method: 'POST',
+        method: "POST",
       }),
       invalidatesTags: [
-        { type: 'Patients', id: 'LIST' },
-        { type: 'UnassignedPatients', id: 'LIST' },
-        { type: 'Dashboard' },
+        { type: "Patients", id: "LIST" },
+        { type: "UnassignedPatients", id: "LIST" },
+        { type: "Dashboard" },
       ],
       transformResponse: (response) => response.data,
     }),
@@ -190,11 +193,11 @@ export const doctorApi = createApi({
     addPatientNote: builder.mutation({
       query: ({ patientId, note }) => ({
         url: `/patients/${patientId}/notes`,
-        method: 'POST',
+        method: "POST",
         body: { note },
       }),
       invalidatesTags: (result, error, { patientId }) => [
-        { type: 'PatientDetails', id: patientId },
+        { type: "PatientDetails", id: patientId },
       ],
       transformResponse: (response) => response.data,
     }),
@@ -203,7 +206,7 @@ export const doctorApi = createApi({
     getPatientNotes: builder.query({
       query: (patientId) => `/patients/${patientId}/notes`,
       providesTags: (result, error, patientId) => [
-        { type: 'PatientDetails', id: patientId },
+        { type: "PatientDetails", id: patientId },
       ],
       transformResponse: (response) => response.data,
     }),
@@ -212,107 +215,110 @@ export const doctorApi = createApi({
     getPatientHealthData: builder.query({
       query: ({ patientId, startDate, endDate, type }) => {
         const params = new URLSearchParams();
-        if (startDate) params.append('startDate', startDate);
-        if (endDate) params.append('endDate', endDate);
-        if (type) params.append('type', type);
+        if (startDate) params.append("startDate", startDate);
+        if (endDate) params.append("endDate", endDate);
+        if (type) params.append("type", type);
         return `/patients/${patientId}/health-data?${params.toString()}`;
       },
       providesTags: (result, error, { patientId }) => [
-        { type: 'PatientDetails', id: patientId },
+        { type: "PatientDetails", id: patientId },
       ],
       transformResponse: (response) => response.data,
     }),
 
     // Get patient report
     getPatientReport: builder.query({
-      query: ({ patientId, days = 30 }) => 
+      query: ({ patientId, days = 30 }) =>
         `/patients/${patientId}/report?days=${days}`,
       providesTags: (result, error, { patientId }) => [
-        { type: 'PatientDetails', id: patientId },
+        { type: "PatientDetails", id: patientId },
       ],
       transformResponse: (response) => response.data,
     }),
 
     // Get patient statistics
     getPatientStatistics: builder.query({
-      query: ({ patientId, days = 30 }) => 
+      query: ({ patientId, days = 30 }) =>
         `/patients/${patientId}/statistics?days=${days}`,
       providesTags: (result, error, { patientId }) => [
-        { type: 'Statistics', id: patientId },
+        { type: "Statistics", id: patientId },
       ],
       transformResponse: (response) => response.data,
     }),
 
     // Get patient vitals
     getPatientVitals: builder.query({
-      query: ({ patientId, limit = 10 }) => 
+      query: ({ patientId, limit = 10 }) =>
         `/patients/${patientId}/vitals?limit=${limit}`,
       providesTags: (result, error, { patientId }) => [
-        { type: 'PatientDetails', id: patientId },
+        { type: "PatientDetails", id: patientId },
       ],
       transformResponse: (response) => response.data,
     }),
 
     // Get patient medication adherence
     getPatientMedicationAdherence: builder.query({
-      query: ({ patientId, days = 30 }) => 
+      query: ({ patientId, days = 30 }) =>
         `/patients/${patientId}/adherence?days=${days}`,
       providesTags: (result, error, { patientId }) => [
-        { type: 'Statistics', id: patientId },
+        { type: "Statistics", id: patientId },
       ],
       transformResponse: (response) => response.data,
     }),
 
     // ========== PRESCRIPTIONS ==========
-    // createPrescription: builder.mutation({
-    //   query: (prescriptionData) => ({
-    //     url: '/prescriptions',
-    //     method: 'POST',
-    //     body: prescriptionData,
-    //   }),
-    //   invalidatesTags: [
-    //     { type: 'Prescriptions', id: 'LIST' },
-    //     { type: 'PatientDetails', id: prescriptionData.patientId },
-    //     { type: 'Dashboard' },
-    //   ],
-    //   transformResponse: (response) => response.data,
-    // }),
 
+    createPrescription: builder.mutation({
+      query: (prescriptionData) => ({
+        url: "/prescriptions",
+        method: "POST",
+        body: prescriptionData,
+      }),
+      invalidatesTags: (result, error, prescriptionData) => [
+        { type: "Prescriptions", id: "LIST" },
+        { type: "PatientDetails", id: prescriptionData.patientId },
+        { type: "Dashboard" },
+      ],
+      transformResponse: (response) => response.data,
+    }),
     getDoctorPrescriptions: builder.query({
       query: ({ status, patientId, page = 1, limit = 20 }) => {
         const params = new URLSearchParams();
-        if (status) params.append('status', status);
-        if (patientId) params.append('patientId', patientId);
-        params.append('page', page);
-        params.append('limit', limit);
+        if (status) params.append("status", status);
+        if (patientId) params.append("patientId", patientId);
+        params.append("page", page);
+        params.append("limit", limit);
         return `/prescriptions?${params.toString()}`;
       },
       providesTags: (result) =>
         result?.data
           ? [
-              ...result.data.map(({ _id }) => ({ type: 'Prescriptions', id: _id })),
-              { type: 'Prescriptions', id: 'LIST' },
+              ...result.data.map(({ _id }) => ({
+                type: "Prescriptions",
+                id: _id,
+              })),
+              { type: "Prescriptions", id: "LIST" },
             ]
-          : [{ type: 'Prescriptions', id: 'LIST' }],
+          : [{ type: "Prescriptions", id: "LIST" }],
       transformResponse: (response) => response,
     }),
 
     getPrescriptionById: builder.query({
       query: (id) => `/prescriptions/${id}`,
-      providesTags: (result, error, id) => [{ type: 'Prescriptions', id }],
+      providesTags: (result, error, id) => [{ type: "Prescriptions", id }],
       transformResponse: (response) => response.data,
     }),
 
     updatePrescription: builder.mutation({
       query: ({ id, ...data }) => ({
         url: `/prescriptions/${id}`,
-        method: 'PUT',
+        method: "PUT",
         body: data,
       }),
       invalidatesTags: (result, error, { id }) => [
-        { type: 'Prescriptions', id },
-        { type: 'Prescriptions', id: 'LIST' },
-        { type: 'PatientDetails', id: result?.patientId },
+        { type: "Prescriptions", id },
+        { type: "Prescriptions", id: "LIST" },
+        { type: "PatientDetails", id: result?.patientId },
       ],
       transformResponse: (response) => response.data,
     }),
@@ -320,40 +326,40 @@ export const doctorApi = createApi({
     deletePrescription: builder.mutation({
       query: (id) => ({
         url: `/prescriptions/${id}`,
-        method: 'DELETE',
+        method: "DELETE",
       }),
       invalidatesTags: [
-        { type: 'Prescriptions', id: 'LIST' },
-        { type: 'PatientDetails', id: 'LIST' },
+        { type: "Prescriptions", id: "LIST" },
+        { type: "PatientDetails", id: "LIST" },
       ],
     }),
 
     renewPrescription: builder.mutation({
       query: ({ id, endDate }) => ({
         url: `/prescriptions/${id}/renew`,
-        method: 'POST',
+        method: "POST",
         body: { endDate },
       }),
       invalidatesTags: (result, error, { id }) => [
-        { type: 'Prescriptions', id },
-        { type: 'Prescriptions', id: 'LIST' },
+        { type: "Prescriptions", id },
+        { type: "Prescriptions", id: "LIST" },
       ],
       transformResponse: (response) => response.data,
     }),
 
     getPrescriptionTemplates: builder.query({
-      query: () => '/prescriptions/templates',
-      providesTags: [{ type: 'Prescriptions', id: 'TEMPLATES' }],
+      query: () => "/prescriptions/templates",
+      providesTags: [{ type: "Prescriptions", id: "TEMPLATES" }],
       transformResponse: (response) => response.data,
     }),
 
     createPrescriptionTemplate: builder.mutation({
       query: (templateData) => ({
-        url: '/prescriptions/templates',
-        method: 'POST',
+        url: "/prescriptions/templates",
+        method: "POST",
         body: templateData,
       }),
-      invalidatesTags: [{ type: 'Prescriptions', id: 'TEMPLATES' }],
+      invalidatesTags: [{ type: "Prescriptions", id: "TEMPLATES" }],
       transformResponse: (response) => response.data,
     }),
 
@@ -361,71 +367,71 @@ export const doctorApi = createApi({
     getDoctorAlerts: builder.query({
       query: ({ status, severity, patientId, page = 1, limit = 50 }) => {
         const params = new URLSearchParams();
-        if (status) params.append('status', status);
-        if (severity) params.append('severity', severity);
-        if (patientId) params.append('patientId', patientId);
-        params.append('page', page);
-        params.append('limit', limit);
+        if (status) params.append("status", status);
+        if (severity) params.append("severity", severity);
+        if (patientId) params.append("patientId", patientId);
+        params.append("page", page);
+        params.append("limit", limit);
         return `/alerts?${params.toString()}`;
       },
       providesTags: (result) =>
         result?.data
           ? [
-              ...result.data.map(({ _id }) => ({ type: 'Alerts', id: _id })),
-              { type: 'Alerts', id: 'LIST' },
+              ...result.data.map(({ _id }) => ({ type: "Alerts", id: _id })),
+              { type: "Alerts", id: "LIST" },
             ]
-          : [{ type: 'Alerts', id: 'LIST' }],
+          : [{ type: "Alerts", id: "LIST" }],
       transformResponse: (response) => response,
     }),
 
     getAlertById: builder.query({
       query: (id) => `/alerts/${id}`,
-      providesTags: (result, error, id) => [{ type: 'Alerts', id }],
+      providesTags: (result, error, id) => [{ type: "Alerts", id }],
       transformResponse: (response) => response.data,
     }),
 
     updateAlertStatus: builder.mutation({
       query: ({ id, status, notes }) => ({
         url: `/alerts/${id}`,
-        method: 'PATCH',
+        method: "PATCH",
         body: { status, notes },
       }),
       invalidatesTags: (result, error, { id }) => [
-        { type: 'Alerts', id },
-        { type: 'Alerts', id: 'LIST' },
-        { type: 'Dashboard' },
+        { type: "Alerts", id },
+        { type: "Alerts", id: "LIST" },
+        { type: "Dashboard" },
       ],
       transformResponse: (response) => response.data,
     }),
 
     getUnreadAlertsCount: builder.query({
-      query: () => '/alerts/unread-count',
-      providesTags: [{ type: 'Alerts', id: 'UNREAD_COUNT' }],
+      query: () => "/alerts/unread-count",
+      providesTags: [{ type: "Alerts", id: "UNREAD_COUNT" }],
       transformResponse: (response) => response.data?.unreadCount,
     }),
 
     getAlertStatistics: builder.query({
       query: ({ days = 30 }) => `/alerts/statistics?days=${days}`,
-      providesTags: ['Statistics'],
+      providesTags: ["Statistics"],
       transformResponse: (response) => response.data,
     }),
 
     // ========== MESSAGES ==========
     sendMessageToPatient: builder.mutation({
-      query: ({ patientId, message, type = 'text' }) => ({
-        url: '/message',
-        method: 'POST',
+      query: ({ patientId, message, type = "text" }) => ({
+        url: "/message",
+        method: "POST",
         body: { patientId, message, type },
       }),
-      invalidatesTags: [{ type: 'Messages', id: 'LIST' }],
+      invalidatesTags: [{ type: "Messages", id: "LIST" }],
       transformResponse: (response) => response.data,
     }),
 
     getMessagesWithPatient: builder.query({
-      query: ({ patientId, page = 1, limit = 50 }) => 
+      query: ({ patientId, page = 1, limit = 50 }) =>
         `/messages/${patientId}?page=${page}&limit=${limit}`,
       providesTags: (result, error, { patientId }) => [
-        { type: 'Messages', id: patientId },
+        { type: "Messages", id: patientId },
       ],
       transformResponse: (response) => response,
     }),
@@ -433,17 +439,17 @@ export const doctorApi = createApi({
     markMessagesAsRead: builder.mutation({
       query: ({ patientId, messageIds }) => ({
         url: `/messages/${patientId}/read`,
-        method: 'POST',
+        method: "POST",
         body: { messageIds },
       }),
       invalidatesTags: (result, error, { patientId }) => [
-        { type: 'Messages', id: patientId },
+        { type: "Messages", id: patientId },
       ],
     }),
 
     getUnreadMessagesCount: builder.query({
-      query: () => '/messages/unread-count',
-      providesTags: [{ type: 'Messages', id: 'UNREAD_COUNT' }],
+      query: () => "/messages/unread-count",
+      providesTags: [{ type: "Messages", id: "UNREAD_COUNT" }],
       transformResponse: (response) => response.data,
     }),
 
@@ -451,80 +457,80 @@ export const doctorApi = createApi({
     getAppointments: builder.query({
       query: ({ date, patientId, page = 1, limit = 20 }) => {
         const params = new URLSearchParams();
-        if (date) params.append('date', date);
-        if (patientId) params.append('patientId', patientId);
-        params.append('page', page);
-        params.append('limit', limit);
+        if (date) params.append("date", date);
+        if (patientId) params.append("patientId", patientId);
+        params.append("page", page);
+        params.append("limit", limit);
         return `/appointments?${params.toString()}`;
       },
-      providesTags: ['Appointments'],
+      providesTags: ["Appointments"],
       transformResponse: (response) => response,
     }),
 
     createAppointment: builder.mutation({
       query: (appointmentData) => ({
-        url: '/appointments',
-        method: 'POST',
+        url: "/appointments",
+        method: "POST",
         body: appointmentData,
       }),
-      invalidatesTags: ['Appointments', 'Dashboard', 'Schedule'],
+      invalidatesTags: ["Appointments", "Dashboard", "Schedule"],
       transformResponse: (response) => response.data,
     }),
 
     updateAppointment: builder.mutation({
       query: ({ id, ...data }) => ({
         url: `/appointments/${id}`,
-        method: 'PUT',
+        method: "PUT",
         body: data,
       }),
-      invalidatesTags: ['Appointments', 'Schedule'],
+      invalidatesTags: ["Appointments", "Schedule"],
       transformResponse: (response) => response.data,
     }),
 
     cancelAppointment: builder.mutation({
       query: (id) => ({
         url: `/appointments/${id}/cancel`,
-        method: 'POST',
+        method: "POST",
       }),
-      invalidatesTags: ['Appointments', 'Schedule'],
+      invalidatesTags: ["Appointments", "Schedule"],
     }),
 
     // ========== SCHEDULE ==========
     getDoctorSchedule: builder.query({
       query: ({ startDate, endDate }) => {
         const params = new URLSearchParams();
-        if (startDate) params.append('startDate', startDate);
-        if (endDate) params.append('endDate', endDate);
+        if (startDate) params.append("startDate", startDate);
+        if (endDate) params.append("endDate", endDate);
         return `/schedule?${params.toString()}`;
       },
-      providesTags: ['Schedule'],
+      providesTags: ["Schedule"],
       transformResponse: (response) => response.data,
     }),
 
     updateAvailability: builder.mutation({
       query: (availabilityData) => ({
-        url: '/schedule/availability',
-        method: 'POST',
+        url: "/schedule/availability",
+        method: "POST",
         body: availabilityData,
       }),
-      invalidatesTags: ['Schedule'],
+      invalidatesTags: ["Schedule"],
       transformResponse: (response) => response.data,
     }),
 
     // ========== REPORTS ==========
     generatePatientReport: builder.mutation({
-      query: ({ patientId, type, format = 'pdf', dateRange }) => ({
+      query: ({ patientId, type, format = "pdf", dateRange }) => ({
         url: `/reports/patient/${patientId}`,
-        method: 'POST',
+        method: "POST",
         body: { type, format, dateRange },
       }),
       transformResponse: (response) => response.data,
     }),
 
     generatePracticeReport: builder.mutation({
-      query: ({ type, format = 'pdf', dateRange }) => ({
-        url: '/reports/practice',
-        method: 'POST',
+      query: ({ type, format = "pdf", dateRange }) => ({
+        url: "/reports/practice",
+        method: "POST",
         body: { type, format, dateRange },
       }),
       transformResponse: (response) => response.data,
@@ -539,44 +545,44 @@ export const doctorApi = createApi({
 
     // ========== SETTINGS ==========
     getDoctorProfile: builder.query({
-      query: () => '/profile',
-      providesTags: ['Profile'],
+      query: () => "/profile",
+      providesTags: ["Profile"],
       transformResponse: (response) => response.data,
     }),
 
     updateDoctorProfile: builder.mutation({
       query: (data) => ({
-        url: '/profile',
-        method: 'PUT',
+        url: "/profile",
+        method: "PUT",
         body: data,
       }),
-      invalidatesTags: ['Profile'],
+      invalidatesTags: ["Profile"],
       transformResponse: (response) => response.data,
     }),
 
     updateAvailabilitySettings: builder.mutation({
       query: (settings) => ({
-        url: '/settings/availability',
-        method: 'PUT',
+        url: "/settings/availability",
+        method: "PUT",
         body: settings,
       }),
-      invalidatesTags: ['Schedule'],
+      invalidatesTags: ["Schedule"],
       transformResponse: (response) => response.data,
     }),
 
     getNotificationSettings: builder.query({
-      query: () => '/settings/notifications',
-      providesTags: ['Settings'],
+      query: () => "/settings/notifications",
+      providesTags: ["Settings"],
       transformResponse: (response) => response.data,
     }),
 
     updateNotificationSettings: builder.mutation({
       query: (settings) => ({
-        url: '/settings/notifications',
-        method: 'PUT',
+        url: "/settings/notifications",
+        method: "PUT",
         body: settings,
       }),
-      invalidatesTags: ['Settings'],
+      invalidatesTags: ["Settings"],
       transformResponse: (response) => response.data,
     }),
   }),
@@ -585,7 +591,7 @@ export const doctorApi = createApi({
 export const {
   // Dashboard
   useGetDoctorDashboardQuery,
-  
+
   // Patients
   useGetPatientsQuery,
   useGetUnassignedPatientsQuery,
@@ -604,7 +610,7 @@ export const {
   useGetPatientStatisticsQuery,
   useGetPatientVitalsQuery,
   useGetPatientMedicationAdherenceQuery,
-  
+
   // Prescriptions
   useCreatePrescriptionMutation,
   useGetDoctorPrescriptionsQuery,
@@ -614,35 +620,35 @@ export const {
   useRenewPrescriptionMutation,
   useGetPrescriptionTemplatesQuery,
   useCreatePrescriptionTemplateMutation,
-  
+
   // Alerts
   useGetDoctorAlertsQuery,
   useGetAlertByIdQuery,
   useUpdateAlertStatusMutation,
   useGetUnreadAlertsCountQuery,
   useGetAlertStatisticsQuery,
-  
+
   // Messages
   useSendMessageToPatientMutation,
   useGetMessagesWithPatientQuery,
   useMarkMessagesAsReadMutation,
   useGetUnreadMessagesCountQuery,
-  
+
   // Appointments
   useGetAppointmentsQuery,
   useCreateAppointmentMutation,
   useUpdateAppointmentMutation,
   useCancelAppointmentMutation,
-  
+
   // Schedule
   useGetDoctorScheduleQuery,
   useUpdateAvailabilityMutation,
-  
+
   // Reports
   useGeneratePatientReportMutation,
   useGeneratePracticeReportMutation,
   useDownloadReportQuery,
-  
+
   // Settings
   useGetDoctorProfileQuery,
   useUpdateDoctorProfileMutation,

@@ -22,8 +22,11 @@ const medicineSchema = new mongoose.Schema({
       'painkiller',
       'antihypertensive',
       'antidiabetic',
+      'antacid',
       'antidepressant',
       'antihistamine',
+      'antiviral',
+      'antifungal',
       'vitamin',
       'supplement',
       'other'
@@ -33,7 +36,7 @@ const medicineSchema = new mongoose.Schema({
   form: {
     type: String,
     enum: ['tablet', 'capsule', 'liquid', 'injection', 'topical', 'inhaler', 'drops'],
-    required: true
+    // required: true
   },
   strength: {
     value: Number,
@@ -112,4 +115,6 @@ medicineSchema.statics.getByCategory = function(category, limit = 50) {
   return this.find({ category, isActive: true }).limit(limit);
 };
 
-module.exports = mongoose.model('Medicine', medicineSchema);
+const Medicine = mongoose.model('Medicine', medicineSchema);
+
+module.exports = Medicine
