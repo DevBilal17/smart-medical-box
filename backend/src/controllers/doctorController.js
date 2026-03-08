@@ -4,6 +4,7 @@ const Prescription = require('../models/Prescription');
 const Alert = require('../models/Alert');
 const Device = require('../models/Device');
 const moment = require('moment');
+const Medicine = require("../models/Medicine")
 const { sendEmail } = require('../utils/emailService');
 
 // @desc    Get all patients assigned to doctor
@@ -268,6 +269,7 @@ const getPatientHealthData = async (req, res) => {
 // @access  Private (Doctor)
 const createPrescription = async (req, res) => {
   try {
+    // console.log(req)
     const doctorId = req.userId;
     const { patientId, medicines, diagnosis, notes, startDate, endDate } = req.body;
 
@@ -783,10 +785,668 @@ const addPatient = async (req, res) => {
   }
 };
 
-module.exports = { addPatient };
+// controllers/dashboardController.js
 
+const getDoctorDashboard = async (req, res) => {
+  try {
+    const doctorId = req.user.id;
 
+    // Run queries in parallel for better performance
+    const [totalPatients, totalPrescriptions, totalMedicines, recentPatients] = await Promise.all([
+      // Count patients (users with role 'patient') for this doctor
+      User.countDocuments({ 
+        assignedDoctor:doctorId, 
+        role: 'patient' 
+      }),
+      
+      // Count prescriptions for this doctor
+      Prescription.countDocuments({ doctorId }),
+      
+      // Count total medicines in the system (or filter by doctor if medicines are doctor-specific)
+      Medicine.countDocuments(), // Add filter if needed: { doctorId } if medicines belong to doctor
+      
+      // Get recent patients (users with role 'patient') for this doctor
+      User.find({ 
+        assignedDoctor :doctorId, 
+        role: 'patient' 
+      })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('name email age gender phone createdAt')
+    ]);
+
+    // Format recent patients data
+    const formattedRecentPatients = recentPatients.map(patient => ({
+      id: patient._id,
+      name: patient.name,
+      age: patient.age,
+      gender: patient.gender,
+      phone: patient.phone,
+      email: patient.email,
+      registeredAt: patient.createdAt
+    }));
+
+    // Dashboard data
+    const dashboardData = {
+      totalPatients,
+      totalPrescriptions,
+      totalMedicines,
+      recentPatients: formattedRecentPatients
+    };
+
+    console.log('Dashboard data:', dashboardData);
+
+    res.status(200).json({
+      success: true,
+      data: dashboardData
+    });
+
+  } catch (error) {
+    console.error('Dashboard error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching dashboard data',
+      error: error.message
+    });
+  }
+};
+
+// ========== PRESCRIPTION MEDICINES ==========
+
+// @desc    Get all medicines for a prescription
+// @route   GET /api/doctor/prescriptions/:prescriptionId/medicines
+// @access  Private (Doctor)
+const getPrescriptionMedicines = async (req, res) => {
+  try {
+    const { prescriptionId } = req.params;
+    const doctorId = req.userId;
+
+    // Verify prescription belongs to this doctor
+    const prescription = await Prescription.findOne({
+      _id: prescriptionId,
+      doctorId
+    });
+
+    if (!prescription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Prescription not found'
+      });
+    }
+
+    // Get medicines (if they're stored in a separate collection)
+    // If medicines are embedded in prescription, just return them
+    const medicines = prescription.medicines || [];
+
+    res.json({
+      success: true,
+      data: medicines,
+      message: 'Prescription medicines fetched successfully'
+    });
+  } catch (error) {
+    console.error('Error fetching prescription medicines:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching prescription medicines',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Add medicine to prescription
+// @route   POST /api/doctor/prescriptions/:prescriptionId/medicines
+// @access  Private (Doctor)
+const addPrescriptionMedicine = async (req, res) => {
+  try {
+    const { prescriptionId } = req.params;
+    const doctorId = req.userId;
+    const medicineData = req.body;
+
+    // Verify prescription belongs to this doctor
+    const prescription = await Prescription.findOne({
+      _id: prescriptionId,
+      doctorId
+    });
+
+    if (!prescription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Prescription not found'
+      });
+    }
+
+    // Add medicine to prescription
+    prescription.medicines.push({
+      ...medicineData,
+      _id: new mongoose.Types.ObjectId()
+    });
+
+    await prescription.save();
+
+    // Notify patient via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`patient-${prescription.patientId}`).emit('prescriptionUpdated', {
+        prescriptionId: prescription._id,
+        action: 'medicineAdded',
+        medicine: medicineData
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      data: prescription.medicines[prescription.medicines.length - 1],
+      message: 'Medicine added successfully'
+    });
+  } catch (error) {
+    console.error('Error adding medicine:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error adding medicine',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Update medicine in prescription
+// @route   PUT /api/doctor/prescriptions/:prescriptionId/medicines/:medicineId
+// @access  Private (Doctor)
+const updatePrescriptionMedicine = async (req, res) => {
+  try {
+    const { prescriptionId, medicineId } = req.params;
+    const doctorId = req.userId;
+    const updates = req.body;
+
+    // Verify prescription belongs to this doctor
+    const prescription = await Prescription.findOne({
+      _id: prescriptionId,
+      doctorId
+    });
+
+    if (!prescription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Prescription not found'
+      });
+    }
+
+    // Find and update the medicine
+    const medicineIndex = prescription.medicines.findIndex(
+      m => m._id.toString() === medicineId
+    );
+
+    if (medicineIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Medicine not found'
+      });
+    }
+
+    // Update medicine fields
+    prescription.medicines[medicineIndex] = {
+      ...prescription.medicines[medicineIndex].toObject(),
+      ...updates,
+      updatedAt: new Date()
+    };
+
+    await prescription.save();
+
+    // Notify patient via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`patient-${prescription.patientId}`).emit('prescriptionUpdated', {
+        prescriptionId: prescription._id,
+        action: 'medicineUpdated',
+        medicineId,
+        updates
+      });
+    }
+
+    res.json({
+      success: true,
+      data: prescription.medicines[medicineIndex],
+      message: 'Medicine updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating medicine:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating medicine',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete medicine from prescription
+// @route   DELETE /api/doctor/prescriptions/:prescriptionId/medicines/:medicineId
+// @access  Private (Doctor)
+const deletePrescriptionMedicine = async (req, res) => {
+  try {
+    const { prescriptionId, medicineId } = req.params;
+    const doctorId = req.userId;
+
+    // Verify prescription belongs to this doctor
+    const prescription = await Prescription.findOne({
+      _id: prescriptionId,
+      doctorId
+    });
+
+    if (!prescription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Prescription not found'
+      });
+    }
+
+    // Remove medicine
+    prescription.medicines = prescription.medicines.filter(
+      m => m._id.toString() !== medicineId
+    );
+
+    await prescription.save();
+
+    // Notify patient via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`patient-${prescription.patientId}`).emit('prescriptionUpdated', {
+        prescriptionId: prescription._id,
+        action: 'medicineDeleted',
+        medicineId
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Medicine deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting medicine:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting medicine',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Reorder medicines in prescription
+// @route   POST /api/doctor/prescriptions/:prescriptionId/medicines/reorder
+// @access  Private (Doctor)
+const reorderPrescriptionMedicines = async (req, res) => {
+  try {
+    const { prescriptionId } = req.params;
+    const doctorId = req.userId;
+    const { medicineOrder } = req.body; // Array of medicine IDs in new order
+
+    // Verify prescription belongs to this doctor
+    const prescription = await Prescription.findOne({
+      _id: prescriptionId,
+      doctorId
+    });
+
+    if (!prescription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Prescription not found'
+      });
+    }
+
+    // Reorder medicines based on provided order
+    const reorderedMedicines = medicineOrder.map(id => 
+      prescription.medicines.find(m => m._id.toString() === id)
+    ).filter(Boolean);
+
+    // Add any medicines not in the order list at the end
+    const remainingMedicines = prescription.medicines.filter(
+      m => !medicineOrder.includes(m._id.toString())
+    );
+
+    prescription.medicines = [...reorderedMedicines, ...remainingMedicines];
+    await prescription.save();
+
+    res.json({
+      success: true,
+      data: prescription.medicines,
+      message: 'Medicines reordered successfully'
+    });
+  } catch (error) {
+    console.error('Error reordering medicines:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error reordering medicines',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get prescription templates
+// @route   GET /api/doctor/prescriptions/templates
+// @access  Private (Doctor)
+const getPrescriptionTemplates = async (req, res) => {
+  try {
+    const doctorId = req.userId;
+    
+    // You'll need a PrescriptionTemplate model for this
+    const templates = await PrescriptionTemplate.find({ 
+      doctorId: { $in: [doctorId, null] } // Common templates + doctor's custom templates
+    }).sort({ name: 1 });
+
+    res.json({
+      success: true,
+      data: templates
+    });
+  } catch (error) {
+    console.error('Error fetching templates:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching templates',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Create prescription template
+// @route   POST /api/doctor/prescriptions/templates
+// @access  Private (Doctor)
+const createPrescriptionTemplate = async (req, res) => {
+  try {
+    const doctorId = req.userId;
+    const templateData = req.body;
+
+    const template = await PrescriptionTemplate.create({
+      ...templateData,
+      doctorId,
+      createdAt: new Date()
+    });
+
+    res.status(201).json({
+      success: true,
+      data: template,
+      message: 'Template created successfully'
+    });
+  } catch (error) {
+    console.error('Error creating template:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error creating template',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get prescription by ID
+// @route   GET /api/doctor/prescriptions/:id
+// @access  Private (Doctor)
+const getPrescriptionById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+    const userRole = req.user.role; // Get role from the user object
+
+    console.log('User ID:', userId);
+    console.log('User Role:', userRole);
+    console.log('Prescription ID:', id);
+
+    const prescription = await Prescription.findById(id)
+      .populate('patientId', 'name email age phone gender bloodGroup')
+      .populate('doctorId', 'name email specialization phone');
+
+    if (!prescription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Prescription not found'
+      });
+    }
+    console.log(prescription)
+    // Check access permissions
+    const isDoctor = userRole === 'doctor' && prescription.doctorId._id.toString() == userId;
+    const isPatient = userRole === 'patient' && prescription.patientId._id.toString() == userId;
+
+    console.log('Is Doctor:', isDoctor);
+    console.log('Is Patient:', isPatient);
+
+    if (!isDoctor && !isPatient) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to view this prescription'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: prescription
+    });
+  } catch (error) {
+    console.error('Error fetching prescription:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching prescription',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Update prescription
+// @route   PUT /api/doctor/prescriptions/:id
+// @access  Private (Doctor)
+const updatePrescription = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const doctorId = req.userId;
+    const updates = req.body;
+
+    const prescription = await Prescription.findOneAndUpdate(
+      { _id: id, doctorId },
+      { ...updates, updatedAt: new Date() },
+      { new: true }
+    );
+
+    if (!prescription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Prescription not found'
+      });
+    }
+
+    // Notify patient via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`patient-${prescription.patientId}`).emit('prescriptionUpdated', {
+        prescriptionId: prescription._id,
+        action: 'updated'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: prescription,
+      message: 'Prescription updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating prescription:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating prescription',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete prescription
+// @route   DELETE /api/doctor/prescriptions/:id
+// @access  Private (Doctor)
+const deletePrescription = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const doctorId = req.userId;
+
+    const prescription = await Prescription.findOneAndDelete({
+      _id: id,
+      doctorId
+    });
+
+    if (!prescription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Prescription not found'
+      });
+    }
+
+    // Notify patient via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`patient-${prescription.patientId}`).emit('prescriptionUpdated', {
+        prescriptionId: id,
+        action: 'deleted'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Prescription deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting prescription:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting prescription',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Renew prescription
+// @route   POST /api/doctor/prescriptions/:id/renew
+// @access  Private (Doctor)
+const renewPrescription = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const doctorId = req.userId;
+    const { endDate } = req.body;
+
+    const prescription = await Prescription.findOne({
+      _id: id,
+      doctorId
+    });
+
+    if (!prescription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Prescription not found'
+      });
+    }
+
+    // Renew prescription
+    prescription.isActive = true;
+    prescription.status = 'active';
+    prescription.endDate = endDate || prescription.endDate;
+    prescription.renewedAt = new Date();
+    await prescription.save();
+
+    // Notify patient via WebSocket
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`patient-${prescription.patientId}`).emit('prescriptionUpdated', {
+        prescriptionId: prescription._id,
+        action: 'renewed',
+        endDate: prescription.endDate
+      });
+    }
+
+    res.json({
+      success: true,
+      data: prescription,
+      message: 'Prescription renewed successfully'
+    });
+  } catch (error) {
+    console.error('Error renewing prescription:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error renewing prescription',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get single prescription by ID
+// @route   GET /api/doctor/prescriptions/:id
+// @access  Private (Doctor)
+// const getPrescriptionById = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const doctorId = req.userId; // From auth middleware
+
+//     // Find prescription and verify it belongs to this doctor
+//     const prescription = await Prescription.findOne({
+//       _id: id,
+//       doctorId: doctorId
+//     })
+//     .populate('patientId', 'name email phone age gender bloodGroup')
+//     .populate('doctorId', 'name email specialization')
+//     .populate('medicines') // If medicines are in a separate collection
+//     .lean(); // Convert to plain JavaScript object for better performance
+
+//     if (!prescription) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Prescription not found or you do not have access to it'
+//       });
+//     }
+
+//     // If medicines are embedded in the prescription (as in your log), 
+//     // they're already there. If not, you might need additional logic.
+
+//     // Optional: Get adherence data for this prescription
+//     const adherenceData = await calculateAdherenceForPrescription(id);
+
+//     res.json({
+//       success: true,
+//       data: {
+//         ...prescription,
+//         adherence: adherenceData
+//       },
+//       message: 'Prescription fetched successfully'
+//     });
+
+//   } catch (error) {
+//     console.error('Error fetching prescription:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Error fetching prescription',
+//       error: error.message
+//     });
+//   }
+// };
+
+// Helper function to calculate adherence
+const calculateAdherenceForPrescription = async (prescriptionId) => {
+  try {
+    // You can implement this based on your medication tracking logic
+    // For example, check medicine intake logs
+    const intakeLogs = await MedicineIntakeLog.find({
+      prescriptionId,
+      scheduledTime: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // Last 30 days
+    });
+
+    if (!intakeLogs.length) return null;
+
+    const totalDoses = intakeLogs.length;
+    const takenDoses = intakeLogs.filter(log => log.taken).length;
+    const adherenceRate = (takenDoses / totalDoses) * 100;
+
+    return {
+      rate: Math.round(adherenceRate),
+      totalDoses,
+      takenDoses,
+      missedDoses: totalDoses - takenDoses
+    };
+  } catch (error) {
+    console.error('Error calculating adherence:', error);
+    return null;
+  }
+};
 module.exports = {
+  addPatient,
   getPatients,
   getPatientDetails,
   getPatientHealthData,
@@ -796,5 +1456,18 @@ module.exports = {
   updateAlertStatus,
   sendMessage,
   getPatientReport,
-  addPatient
+  addPatient,
+  getDoctorDashboard,
+
+  getPrescriptionMedicines,
+  addPrescriptionMedicine,
+  updatePrescriptionMedicine,
+  deletePrescriptionMedicine,
+  reorderPrescriptionMedicines,
+  getPrescriptionById,
+  updatePrescription,
+  deletePrescription,
+  renewPrescription,
+  getPrescriptionTemplates,
+  createPrescriptionTemplate,
 };

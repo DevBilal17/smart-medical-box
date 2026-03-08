@@ -109,12 +109,12 @@ healthRecordSchema.methods.checkAbnormal = function() {
   if (this.systolic > 140 || this.diastolic > 90) {
     abnormalConditions.push('bloodPressure');
   }
-  if (this.oxygenLevel && this.oxygenLevel < 95) {
-    abnormalConditions.push('oxygenLevel');
-  }
-  if (this.temperature && (this.temperature < 36 || this.temperature > 37.5)) {
-    abnormalConditions.push('temperature');
-  }
+  // if (this.oxygenLevel && this.oxygenLevel < 95) {
+  //   abnormalConditions.push('oxygenLevel');
+  // }
+  // if (this.temperature && (this.temperature < 36 || this.temperature > 37.5)) {
+  //   abnormalConditions.push('temperature');
+  // }
   
   this.isAbnormal = abnormalConditions.length > 0;
   return {

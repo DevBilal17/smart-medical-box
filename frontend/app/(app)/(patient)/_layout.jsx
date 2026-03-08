@@ -48,7 +48,9 @@ export default function PatientLayout() {
         }}
       />
       <Tabs.Screen name="medicines/[id]" options={{ href: null }} />
-      <Tabs.Screen
+      <Tabs.Screen name="medicines/history" options={{ href: null }} />
+       <Tabs.Screen name="medicines/today" options={{ href: null }} />
+      {/* <Tabs.Screen
         name="alerts/index" // Add this
         options={{
           title: 'Alerts',
@@ -56,7 +58,12 @@ export default function PatientLayout() {
             <Icon name="bell" size={size} color={color} />
           ),
         }}
+      /> */}
+       <Tabs.Screen
+        name="alerts/index" // Add this
+       options={{ href: null }} 
       />
+      <Tabs.Screen name="prescriptions/[id]" options={{ href: null }} />
       <Tabs.Screen
         name="device/index" // Add this
         options={{

@@ -6,105 +6,40 @@ import {
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
-  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import moment from 'moment';
-import { useGetPrescriptionsQuery, useGetTodaysMedicinesQuery } from '../../../../src/store/api/patientApi';
-import { useMarkMedicineTakenMutation } from '../../../../src/store/api/patientApi';
+import { useGetPrescriptionsQuery } from '../../../../src/store/api/patientApi';
 import Loading from '../../../../src/components/Loading';
 import EmptyState from '../../../../src/components/EmptyState';
-import MedicineCard from '../../../../src/components/MedicineCard';
 
 export default function Medicines() {
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedTab, setSelectedTab] = useState('today'); // today, all, history
-
-  const { 
-    data: todaysMedicines = [],
-    isLoading: todaysLoading,
-    refetch: refetchToday
-  } = useGetTodaysMedicinesQuery();
 
   const {
     data: prescriptions,
-    isLoading: prescriptionsLoading,
+    isLoading,
     refetch: refetchPrescriptions
   } = useGetPrescriptionsQuery({ 
-    status: 'active',
     page: 1,
     limit: 50
   });
 
-  const [markMedicineTaken] = useMarkMedicineTakenMutation();
-
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([refetchToday(), refetchPrescriptions()]);
+    await refetchPrescriptions();
     setRefreshing(false);
   };
-
-  const handleTakeMedicine = async (medicine) => {
-    Alert.alert(
-      'Take Medicine',
-      `Have you taken ${medicine.name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Yes, Taken',
-          onPress: async () => {
-            try {
-              await markMedicineTaken({
-                prescriptionId: medicine.prescriptionId,
-                medicineId: medicine.id,
-                timeIndex: medicine.timeIndex
-              }).unwrap();
-              Alert.alert('Success', 'Medicine marked as taken');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to mark medicine as taken');
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  const getMedicineStatus = (medicine) => {
-    const now = moment();
-    const medicineTime = moment(medicine.time, 'HH:mm');
-    const todayDateTime = moment().set({
-      hour: medicineTime.hour(),
-      minute: medicineTime.minute()
-    });
-
-    if (medicine.taken) {
-      return { status: 'taken', color: '#2ecc71', icon: 'check-circle' };
-    } else if (now.isAfter(todayDateTime)) {
-      return { status: 'missed', color: '#e74c3c', icon: 'close-circle' };
-    } else if (now.isBetween(moment(todayDateTime).subtract(30, 'minutes'), todayDateTime)) {
-      return { status: 'upcoming', color: '#f39c12', icon: 'clock-outline' };
-    } else {
-      return { status: 'scheduled', color: '#3498db', icon: 'calendar-clock' };
-    }
-  };
-
-  const isLoading = todaysLoading || prescriptionsLoading;
 
   if (isLoading && !refreshing) {
     return <Loading />;
   }
 
-  // Categorize today's medicines
-  const upcoming = todaysMedicines?.filter(m => 
-    !m.taken && moment(m.time, 'HH:mm').isAfter(moment())
-  ) || [];
-  
-  const taken = todaysMedicines?.filter(m => m.taken) || [];
-  const missed = todaysMedicines?.filter(m => 
-    !m.taken && moment(m.time, 'HH:mm').isBefore(moment())
-  ) || [];
+  // Separate active and completed prescriptions
+  const activePrescriptions = prescriptions?.data?.filter(p => p.isActive) || [];
+  const completedPrescriptions = prescriptions?.data?.filter(p => !p.isActive) || [];
 
   return (
     <View style={styles.container}>
@@ -113,62 +48,28 @@ export default function Medicines() {
           <Icon name="arrow-left" size={24} color="#2c3e50" />
         </TouchableOpacity>
         <Text style={styles.title}>My Medicines</Text>
-        <TouchableOpacity onPress={() => router.push('/(app)/(patient)/medicines/history')}>
-          <Icon name="history" size={24} color="#3498db" />
-        </TouchableOpacity>
+        <View style={{ width: 24 }} />
       </View>
 
-      {/* Summary Card */}
-      <LinearGradient
-        colors={['#3498db', '#2980b9']}
-        style={styles.summaryCard}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
+      {/* Today's Medicines Quick Link */}
+      {/* <TouchableOpacity 
+        style={styles.todayLink}
+        onPress={() => router.push('/(app)/(patient)/medicines/today')}
       >
-        <View style={styles.summaryContent}>
-          <View>
-            <Text style={styles.summaryLabel}>Today's Schedule</Text>
-            <Text style={styles.summaryValue}>{todaysMedicines?.length || 0} Medicines</Text>
-            <View style={styles.summaryStats}>
-              <View style={styles.summaryStat}>
-                <View style={[styles.statDot, { backgroundColor: '#2ecc71' }]} />
-                <Text style={styles.statText}>Taken: {taken.length}</Text>
-              </View>
-              <View style={styles.summaryStat}>
-                <View style={[styles.statDot, { backgroundColor: '#f39c12' }]} />
-                <Text style={styles.statText}>Pending: {upcoming.length}</Text>
-              </View>
-              {missed.length > 0 && (
-                <View style={styles.summaryStat}>
-                  <View style={[styles.statDot, { backgroundColor: '#e74c3c' }]} />
-                  <Text style={styles.statText}>Missed: {missed.length}</Text>
-                </View>
-              )}
-            </View>
+        <LinearGradient
+          colors={['#2ecc71', '#27ae60']}
+          style={styles.todayLinkGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+        >
+          <Icon name="pill" size={24} color="#fff" />
+          <View style={styles.todayLinkText}>
+            <Text style={styles.todayLinkTitle}>Today's Schedule</Text>
+            <Text style={styles.todayLinkSubtitle}>View your medicines for today</Text>
           </View>
-          <Icon name="pill" size={50} color="#fff" style={styles.summaryIcon} />
-        </View>
-      </LinearGradient>
-
-      {/* Tab Selector */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, selectedTab === 'today' && styles.tabActive]}
-          onPress={() => setSelectedTab('today')}
-        >
-          <Text style={[styles.tabText, selectedTab === 'today' && styles.tabTextActive]}>
-            Today
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, selectedTab === 'all' && styles.tabActive]}
-          onPress={() => setSelectedTab('all')}
-        >
-          <Text style={[styles.tabText, selectedTab === 'all' && styles.tabTextActive]}>
-            All Medicines
-          </Text>
-        </TouchableOpacity>
-      </View>
+          <Icon name="chevron-right" size={24} color="#fff" />
+        </LinearGradient>
+      </TouchableOpacity> */}
 
       <ScrollView
         style={styles.content}
@@ -177,129 +78,128 @@ export default function Medicines() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {selectedTab === 'today' ? (
-          <>
-            {/* Upcoming Medicines */}
-            {upcoming.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Upcoming</Text>
-                {upcoming.map((medicine, index) => (
-                  <MedicineCard
-                    key={index}
-                    medicine={{
-                      ...medicine,
-                      status: getMedicineStatus(medicine).status
-                    }}
-                    onPress={() => router.push({
-                      pathname: '/(app)/(patient)/medicines/[id]',
-                      params: { id: medicine.id }
-                    })}
-                    onTake={() => handleTakeMedicine(medicine)}
-                  />
-                ))}
-              </View>
-            )}
-
-            {/* Taken Medicines */}
-            {taken.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Taken</Text>
-                {taken.map((medicine, index) => (
-                  <MedicineCard
-                    key={index}
-                    medicine={{
-                      ...medicine,
-                      status: 'taken'
-                    }}
-                    onPress={() => router.push({
-                      pathname: '/(app)/(patient)/medicines/[id]',
-                      params: { id: medicine.id }
-                    })}
-                  />
-                ))}
-              </View>
-            )}
-
-            {/* Missed Medicines */}
-            {missed.length > 0 && (
-              <View style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: '#e74c3c' }]}>Missed</Text>
-                {missed.map((medicine, index) => (
-                  <MedicineCard
-                    key={index}
-                    medicine={{
-                      ...medicine,
-                      status: 'missed'
-                    }}
-                    onPress={() => router.push({
-                      pathname: '/(app)/(patient)/medicines/[id]',
-                      params: { id: medicine.id }
-                    })}
-                  />
-                ))}
-              </View>
-            )}
-
-            {todaysMedicines?.length === 0 && (
-              <EmptyState
-                icon="pill-off"
-                title="No Medicines Today"
-                message="You don't have any medicines scheduled for today"
-              />
-            )}
-          </>
-        ) : (
-          <>
-            {/* Active Prescriptions */}
-            {prescriptions?.data?.map((prescription, index) => (
+        {/* Active Prescriptions */}
+        {activePrescriptions.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Icon name="file-document" size={20} color="#2ecc71" />
+              <Text style={styles.sectionTitle}>Active Prescriptions</Text>
+              <Text style={styles.sectionCount}>{activePrescriptions.length}</Text>
+            </View>
+            
+            {activePrescriptions.map((prescription) => (
               <TouchableOpacity
-                key={index}
+                key={prescription._id}
                 style={styles.prescriptionCard}
                 onPress={() => router.push({
                   pathname: '/(app)/(patient)/prescriptions/[id]',
-                  params: { id: prescription.id }
+                  params: { id: prescription._id }
                 })}
               >
                 <View style={styles.prescriptionHeader}>
-                  <Icon name="file-document" size={20} color="#3498db" />
-                  <Text style={styles.prescriptionDate}>
-                    {moment(prescription.startDate).format('MMM D, YYYY')} - {moment(prescription.endDate).format('MMM D, YYYY')}
-                  </Text>
+                  <View style={styles.prescriptionTitleContainer}>
+                    <Text style={styles.prescriptionDoctor}>
+                      Dr. {prescription.doctorId?.name || 'Unknown'}
+                    </Text>
+                    <View style={styles.activeBadge}>
+                      <Text style={styles.activeBadgeText}>Active</Text>
+                    </View>
+                  </View>
+                  <Icon name="chevron-right" size={20} color="#bdc3c7" />
                 </View>
-                <Text style={styles.prescriptionDoctor}>
-                  Dr. {prescription.doctorId?.name}
+
+                <Text style={styles.prescriptionDiagnosis}>
+                  {prescription.diagnosis}
                 </Text>
-                <Text style={styles.prescriptionCount}>
-                  {prescription.medicines?.length || 0} medicines
-                </Text>
-                <View style={styles.prescriptionFooter}>
-                  <View style={[styles.statusBadge, { 
-                    backgroundColor: prescription.isActive ? '#2ecc71' : '#95a5a6' 
-                  }]}>
-                    <Text style={styles.statusBadgeText}>
-                      {prescription.isActive ? 'Active' : 'Completed'}
+
+                <View style={styles.prescriptionDetails}>
+                  <View style={styles.detailItem}>
+                    <Icon name="calendar" size={14} color="#7f8c8d" />
+                    <Text style={styles.detailText}>
+                      {moment(prescription.startDate).format('MMM D, YYYY')} - {moment(prescription.endDate).format('MMM D, YYYY')}
                     </Text>
                   </View>
-                  <Text style={styles.adherenceText}>
-                    Adherence: {prescription.adherenceRate || 0}%
+                  
+                  <View style={styles.detailItem}>
+                    <Icon name="pill" size={14} color="#7f8c8d" />
+                    <Text style={styles.detailText}>
+                      {prescription.medicines?.length || 0} medicines
+                    </Text>
+                  </View>
+                </View>
+
+                {prescription.notes && (
+                  <Text style={styles.prescriptionNotes} numberOfLines={2}>
+                    {prescription.notes}
                   </Text>
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* Completed Prescriptions */}
+        {completedPrescriptions.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Icon name="file-document" size={20} color="#95a5a6" />
+              <Text style={styles.sectionTitle}>Completed Prescriptions</Text>
+              <Text style={styles.sectionCount}>{completedPrescriptions.length}</Text>
+            </View>
+            
+            {completedPrescriptions.map((prescription) => (
+              <TouchableOpacity
+                key={prescription._id}
+                style={[styles.prescriptionCard, styles.completedCard]}
+                onPress={() => router.push({
+                  pathname: '/(app)/(patient)/prescriptions/[id]',
+                  params: { id: prescription._id }
+                })}
+              >
+                <View style={styles.prescriptionHeader}>
+                  <View style={styles.prescriptionTitleContainer}>
+                    <Text style={[styles.prescriptionDoctor, styles.completedText]}>
+                      Dr. {prescription.doctorId?.name || 'Unknown'}
+                    </Text>
+                    <View style={styles.completedBadge}>
+                      <Text style={styles.completedBadgeText}>Completed</Text>
+                    </View>
+                  </View>
+                  <Icon name="chevron-right" size={20} color="#bdc3c7" />
+                </View>
+
+                <Text style={[styles.prescriptionDiagnosis, styles.completedText]}>
+                  {prescription.diagnosis}
+                </Text>
+
+                <View style={styles.prescriptionDetails}>
+                  <View style={styles.detailItem}>
+                    <Icon name="calendar" size={14} color="#95a5a6" />
+                    <Text style={[styles.detailText, styles.completedText]}>
+                      {moment(prescription.startDate).format('MMM D, YYYY')} - {moment(prescription.endDate).format('MMM D, YYYY')}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.detailItem}>
+                    <Icon name="pill" size={14} color="#95a5a6" />
+                    <Text style={[styles.detailText, styles.completedText]}>
+                      {prescription.medicines?.length || 0} medicines
+                    </Text>
+                  </View>
                 </View>
               </TouchableOpacity>
             ))}
+          </View>
+        )}
 
-            {(!prescriptions?.data || prescriptions.data.length === 0) && (
-              <EmptyState
-                icon="file-document-outline"
-                title="No Prescriptions"
-                message="You don't have any active prescriptions"
-              />
-            )}
-          </>
+        {(!prescriptions?.data || prescriptions.data.length === 0) && (
+          <EmptyState
+            icon="file-document-outline"
+            title="No Prescriptions"
+            message="You don't have any prescriptions yet"
+          />
         )}
       </ScrollView>
-
-      {/* Floating Action Button for adding prescription (only for doctors) */}
-      {/* This would be conditionally rendered based on user role */}
     </View>
   );
 }
@@ -323,80 +223,36 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#2c3e50',
   },
-  summaryCard: {
+  todayLink: {
     margin: 20,
-    borderRadius: 15,
+    marginBottom: 10,
+    borderRadius: 12,
     overflow: 'hidden',
-    elevation: 5,
+    elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  summaryContent: {
-    padding: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  summaryLabel: {
-    fontSize: 14,
-    color: '#fff',
-    opacity: 0.9,
-  },
-  summaryValue: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginTop: 5,
-  },
-  summaryStats: {
-    marginTop: 10,
-  },
-  summaryStat: {
+  todayLinkGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 5,
+    padding: 15,
   },
-  statDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 8,
-  },
-  statText: {
-    color: '#fff',
-    fontSize: 12,
-    opacity: 0.9,
-  },
-  summaryIcon: {
-    opacity: 0.8,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  tab: {
+  todayLinkText: {
     flex: 1,
-    paddingVertical: 10,
-    marginHorizontal: 5,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    marginLeft: 12,
   },
-  tabActive: {
-    backgroundColor: '#3498db',
-    borderColor: '#3498db',
-  },
-  tabText: {
-    textAlign: 'center',
-    color: '#2c3e50',
-    fontSize: 14,
-  },
-  tabTextActive: {
+  todayLinkTitle: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#fff',
+  },
+  todayLinkSubtitle: {
+    fontSize: 12,
+    color: '#fff',
+    opacity: 0.9,
+    marginTop: 2,
   },
   content: {
     flex: 1,
@@ -405,65 +261,106 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 20,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#2c3e50',
-    marginBottom: 10,
+    marginLeft: 8,
+    flex: 1,
+  },
+  sectionCount: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    backgroundColor: '#ecf0f1',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
   },
   prescriptionCard: {
     backgroundColor: '#fff',
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 15,
     marginBottom: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
     elevation: 2,
+  },
+  completedCard: {
+    opacity: 0.8,
+    backgroundColor: '#f8f9fa',
   },
   prescriptionHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
-  prescriptionDate: {
-    marginLeft: 10,
-    fontSize: 12,
-    color: '#7f8c8d',
+  prescriptionTitleContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   prescriptionDoctor: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
     color: '#2c3e50',
-    marginBottom: 5,
   },
-  prescriptionCount: {
-    fontSize: 12,
-    color: '#3498db',
-    marginBottom: 10,
-  },
-  prescriptionFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 5,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#ecf0f1',
-  },
-  statusBadge: {
+  activeBadge: {
+    backgroundColor: '#2ecc71',
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 2,
     borderRadius: 12,
   },
-  statusBadgeText: {
+  activeBadgeText: {
     color: '#fff',
     fontSize: 10,
     fontWeight: 'bold',
   },
-  adherenceText: {
+  completedBadge: {
+    backgroundColor: '#95a5a6',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  completedBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  prescriptionDiagnosis: {
+    fontSize: 14,
+    color: '#34495e',
+    marginBottom: 10,
+  },
+  prescriptionDetails: {
+    gap: 6,
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  detailText: {
     fontSize: 12,
     color: '#7f8c8d',
+  },
+  prescriptionNotes: {
+    fontSize: 12,
+    color: '#3498db',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#ecf0f1',
+  },
+  completedText: {
+    color: '#95a5a6',
   },
 });

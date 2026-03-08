@@ -21,7 +21,7 @@ export default function MedicineCard({ medicine, onPress, onTake }) {
       default: return 'pill';
     }
   };
-
+// console.log(medicine)
   return (
     <TouchableOpacity style={styles.container} onPress={onPress}>
       <View style={[styles.colorBar, { backgroundColor: getStatusColor(medicine.status) }]} />
@@ -44,7 +44,7 @@ export default function MedicineCard({ medicine, onPress, onTake }) {
         <View style={styles.details}>
           <View style={styles.detailItem}>
             <Icon name="clock-outline" size={16} color="#7f8c8d" />
-            <Text style={styles.detailText}>{formatTime(medicine.time)}</Text>
+            <Text style={styles.detailText}>{formatTime(medicine.times[0].time)}</Text>
           </View>
           
           <View style={styles.detailItem}>

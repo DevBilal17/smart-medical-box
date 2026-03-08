@@ -150,7 +150,7 @@ export default function PatientsList() {
         {filteredPatients.length > 0 ? (
           filteredPatients.map((patient) => (
             <TouchableOpacity
-              key={patient.id}
+              key={patient._id}
               style={styles.patientCard}
               onPress={() => router.push({
                 pathname: '/(app)/(doctor)/patients/[id]',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -22,7 +22,7 @@ import Loading from '../../../../src/components/Loading';
 const profileSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   phone: z.string().regex(/^[0-9]{10}$/, 'Please enter a valid 10-digit phone number'),
-  age: z.string().refine((val) => !isNaN(val) && val > 0 && val < 150, {
+  age: z.string().refine((val) => !isNaN(val) && parseInt(val) > 0 && parseInt(val) < 150, {
     message: 'Please enter a valid age',
   }),
   gender: z.enum(['male', 'female', 'other']),
@@ -35,63 +35,165 @@ const profileSchema = z.object({
   }).optional(),
   emergencyContact: z.object({
     name: z.string().optional(),
-    phone: z.string().regex(/^[0-9]{10}$/, 'Please enter a valid 10-digit phone number').optional(),
+    phone: z.string().regex(/^[0-9]{10}$/, 'Please enter a valid 10-digit phone number').optional().or(z.literal('')),
     relationship: z.string().optional(),
   }).optional(),
+  allergies: z.string().optional(),
+  medicalConditions: z.string().optional(),
 });
 
 export default function EditProfile() {
   const [loading, setLoading] = useState(false);
-  const { data: profile, isLoading: profileLoading } = useGetPatientProfileQuery();
-  const [updateProfile] = useUpdatePatientProfileMutation();
+  const { data: profile, isLoading: profileLoading, error: profileError, refetch } = useGetPatientProfileQuery();
+  const [updateProfile, { isLoading: isUpdating }] = useUpdatePatientProfileMutation();
 
   const {
     control,
     handleSubmit,
     formState: { errors },
+    reset,
   } = useForm({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      name: profile?.name || '',
-      phone: profile?.phone || '',
-      age: profile?.age?.toString() || '',
-      gender: profile?.gender || 'male',
-      bloodGroup: profile?.bloodGroup || 'O+',
+      name: '',
+      phone: '',
+      age: '',
+      gender: 'male',
+      bloodGroup: '',
       address: {
-        street: profile?.address?.street || '',
-        city: profile?.address?.city || '',
-        state: profile?.address?.state || '',
-        zipCode: profile?.address?.zipCode || '',
+        street: '',
+        city: '',
+        state: '',
+        zipCode: '',
       },
       emergencyContact: {
-        name: profile?.emergencyContact?.name || '',
-        phone: profile?.emergencyContact?.phone || '',
-        relationship: profile?.emergencyContact?.relationship || '',
+        name: '',
+        phone: '',
+        relationship: '',
       },
+      allergies: '',
+      medicalConditions: '',
     },
   });
+
+  // Set form values when profile data is loaded
+  useEffect(() => {
+    if (profile) {
+      reset({
+        name: profile.name || '',
+        phone: profile.phone || '',
+        age: profile.age?.toString() || '',
+        gender: profile.gender || 'male',
+        bloodGroup: profile.bloodGroup || '',
+        address: {
+          street: profile.address?.street || '',
+          city: profile.address?.city || '',
+          state: profile.address?.state || '',
+          zipCode: profile.address?.zipCode || '',
+        },
+        emergencyContact: {
+          name: profile.emergencyContact?.name || '',
+          phone: profile.emergencyContact?.phone || '',
+          relationship: profile.emergencyContact?.relationship || '',
+        },
+        allergies: profile.allergies?.join(', ') || '',
+        medicalConditions: profile.medicalConditions?.join(', ') || '',
+      });
+    }
+  }, [profile, reset]);
 
   if (profileLoading) {
     return <Loading />;
   }
 
+  if (profileError) {
+    return (
+      <View style={styles.errorContainer}>
+        <Icon name="alert-circle" size={50} color="#e74c3c" />
+        <Text style={styles.errorTitle}>Error Loading Profile</Text>
+        <Text style={styles.errorMessage}>
+          {profileError?.data?.message || 'Failed to load profile. Please try again.'}
+        </Text>
+        <TouchableOpacity style={styles.retryButton} onPress={() => refetch()}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      await updateProfile({
-        ...data,
+      // Process the data before sending
+      const updateData = {
+        name: data.name,
+        phone: data.phone,
         age: parseInt(data.age),
-      }).unwrap();
+        gender: data.gender,
+        bloodGroup: data.bloodGroup || undefined,
+        address: {
+          street: data.address?.street || '',
+          city: data.address?.city || '',
+          state: data.address?.state || '',
+          zipCode: data.address?.zipCode || '',
+        },
+        emergencyContact: {
+          name: data.emergencyContact?.name || '',
+          phone: data.emergencyContact?.phone || '',
+          relationship: data.emergencyContact?.relationship || '',
+        },
+        allergies: data.allergies ? data.allergies.split(',').map(item => item.trim()).filter(item => item) : [],
+        medicalConditions: data.medicalConditions ? data.medicalConditions.split(',').map(item => item.trim()).filter(item => item) : [],
+      };
+
+      // Remove empty fields
+      Object.keys(updateData).forEach(key => {
+        if (updateData[key] === undefined || updateData[key] === '') {
+          delete updateData[key];
+        }
+      });
+
+      if (updateData.address && Object.values(updateData.address).every(val => !val)) {
+        delete updateData.address;
+      }
+
+      if (updateData.emergencyContact && Object.values(updateData.emergencyContact).every(val => !val)) {
+        delete updateData.emergencyContact;
+      }
+
+      const response = await updateProfile(updateData).unwrap();
       
-      Alert.alert('Success', 'Profile updated successfully', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
+      Alert.alert(
+        'Success',
+        response.message || 'Profile updated successfully',
+        [
+          { 
+            text: 'OK', 
+            onPress: () => router.back() 
+          }
+        ]
+      );
     } catch (error) {
-      Alert.alert('Error', error.data?.message || 'Failed to update profile');
+      console.error('Update error:', error);
+      
+      // Handle different error types
+      let errorMessage = 'Failed to update profile';
+      
+      if (error?.data?.message) {
+        errorMessage = error.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
     }
   };
+
+  const isLoading = loading || isUpdating;
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -100,8 +202,8 @@ export default function EditProfile() {
           <Icon name="arrow-left" size={24} color="#2c3e50" />
         </TouchableOpacity>
         <Text style={styles.title}>Edit Profile</Text>
-        <TouchableOpacity onPress={handleSubmit(onSubmit)} disabled={loading}>
-          {loading ? (
+        <TouchableOpacity onPress={handleSubmit(onSubmit)} disabled={isLoading}>
+          {isLoading ? (
             <ActivityIndicator size="small" color="#3498db" />
           ) : (
             <Text style={styles.saveText}>Save</Text>
@@ -116,7 +218,7 @@ export default function EditProfile() {
           
           {/* Name Field */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Full Name</Text>
+            <Text style={styles.label}>Full Name <Text style={styles.required}>*</Text></Text>
             <View style={[styles.inputContainer, errors.name && styles.inputError]}>
               <Icon name="account" size={20} color="#95a5a6" style={styles.inputIcon} />
               <Controller
@@ -130,6 +232,7 @@ export default function EditProfile() {
                     onBlur={onBlur}
                     onChangeText={onChange}
                     value={value}
+                    editable={!isLoading}
                   />
                 )}
               />
@@ -148,7 +251,7 @@ export default function EditProfile() {
 
           {/* Phone Field */}
           <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Phone Number</Text>
+            <Text style={styles.label}>Phone Number <Text style={styles.required}>*</Text></Text>
             <View style={[styles.inputContainer, errors.phone && styles.inputError]}>
               <Icon name="phone" size={20} color="#95a5a6" style={styles.inputIcon} />
               <Controller
@@ -164,6 +267,7 @@ export default function EditProfile() {
                     value={value}
                     keyboardType="phone-pad"
                     maxLength={10}
+                    editable={!isLoading}
                   />
                 )}
               />
@@ -174,7 +278,7 @@ export default function EditProfile() {
           {/* Age and Gender Row */}
           <View style={styles.rowContainer}>
             <View style={[styles.fieldContainer, styles.halfField]}>
-              <Text style={styles.label}>Age</Text>
+              <Text style={styles.label}>Age <Text style={styles.required}>*</Text></Text>
               <View style={[styles.inputContainer, errors.age && styles.inputError]}>
                 <Icon name="cake-variant" size={20} color="#95a5a6" style={styles.inputIcon} />
                 <Controller
@@ -190,6 +294,7 @@ export default function EditProfile() {
                       value={value}
                       keyboardType="numeric"
                       maxLength={3}
+                      editable={!isLoading}
                     />
                   )}
                 />
@@ -198,8 +303,8 @@ export default function EditProfile() {
             </View>
 
             <View style={[styles.fieldContainer, styles.halfField]}>
-              <Text style={styles.label}>Gender</Text>
-              <View style={styles.pickerContainer}>
+              <Text style={styles.label}>Gender <Text style={styles.required}>*</Text></Text>
+              <View style={[styles.pickerContainer, errors.gender && styles.inputError]}>
                 <Icon name="gender-male-female" size={20} color="#95a5a6" style={styles.inputIcon} />
                 <Controller
                   control={control}
@@ -209,6 +314,7 @@ export default function EditProfile() {
                       selectedValue={value}
                       style={styles.picker}
                       onValueChange={onChange}
+                      enabled={!isLoading}
                     >
                       <Picker.Item label="Male" value="male" />
                       <Picker.Item label="Female" value="female" />
@@ -233,6 +339,7 @@ export default function EditProfile() {
                     selectedValue={value}
                     style={styles.picker}
                     onValueChange={onChange}
+                    enabled={!isLoading}
                   >
                     <Picker.Item label="Select Blood Group" value="" />
                     <Picker.Item label="A+" value="A+" />
@@ -269,6 +376,7 @@ export default function EditProfile() {
                     onBlur={onBlur}
                     onChangeText={onChange}
                     value={value}
+                    editable={!isLoading}
                   />
                 )}
               />
@@ -290,6 +398,7 @@ export default function EditProfile() {
                       onBlur={onBlur}
                       onChangeText={onChange}
                       value={value}
+                      editable={!isLoading}
                     />
                   )}
                 />
@@ -310,6 +419,7 @@ export default function EditProfile() {
                       onBlur={onBlur}
                       onChangeText={onChange}
                       value={value}
+                      editable={!isLoading}
                     />
                   )}
                 />
@@ -333,6 +443,7 @@ export default function EditProfile() {
                     value={value}
                     keyboardType="numeric"
                     maxLength={6}
+                    editable={!isLoading}
                   />
                 )}
               />
@@ -359,6 +470,7 @@ export default function EditProfile() {
                     onBlur={onBlur}
                     onChangeText={onChange}
                     value={value}
+                    editable={!isLoading}
                   />
                 )}
               />
@@ -382,10 +494,14 @@ export default function EditProfile() {
                     value={value}
                     keyboardType="phone-pad"
                     maxLength={10}
+                    editable={!isLoading}
                   />
                 )}
               />
             </View>
+            {errors.emergencyContact?.phone && (
+              <Text style={styles.errorText}>{errors.emergencyContact.phone.message}</Text>
+            )}
           </View>
 
           <View style={styles.fieldContainer}>
@@ -403,6 +519,7 @@ export default function EditProfile() {
                     onBlur={onBlur}
                     onChangeText={onChange}
                     value={value}
+                    editable={!isLoading}
                   />
                 )}
               />
@@ -418,11 +535,20 @@ export default function EditProfile() {
             <Text style={styles.label}>Allergies (comma separated)</Text>
             <View style={styles.inputContainer}>
               <Icon name="alert" size={20} color="#95a5a6" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., Penicillin, Peanuts"
-                placeholderTextColor="#95a5a6"
-                defaultValue={profile?.allergies?.join(', ')}
+              <Controller
+                control={control}
+                name="allergies"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g., Penicillin, Peanuts"
+                    placeholderTextColor="#95a5a6"
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    value={value}
+                    editable={!isLoading}
+                  />
+                )}
               />
             </View>
           </View>
@@ -431,27 +557,36 @@ export default function EditProfile() {
             <Text style={styles.label}>Medical Conditions</Text>
             <View style={styles.inputContainer}>
               <Icon name="medical-bag" size={20} color="#95a5a6" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., Diabetes, Hypertension"
-                placeholderTextColor="#95a5a6"
-                defaultValue={profile?.medicalConditions?.join(', ')}
+              <Controller
+                control={control}
+                name="medicalConditions"
+                render={({ field: { onChange, onBlur, value } }) => (
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g., Diabetes, Hypertension"
+                    placeholderTextColor="#95a5a6"
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    value={value}
+                    editable={!isLoading}
+                  />
+                )}
               />
             </View>
           </View>
         </View>
 
-        {/* Save Button (Mobile bottom) */}
+        {/* Save Button */}
         <TouchableOpacity
           style={styles.saveButton}
           onPress={handleSubmit(onSubmit)}
-          disabled={loading}
+          disabled={isLoading}
         >
           <LinearGradient
-            colors={['#3498db', '#2980b9']}
+            colors={isLoading ? ['#95a5a6', '#7f8c8d'] : ['#3498db', '#2980b9']}
             style={styles.saveGradient}
           >
-            {loading ? (
+            {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <>
@@ -529,6 +664,9 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     marginBottom: 5,
   },
+  required: {
+    color: '#e74c3c',
+  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -593,5 +731,35 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 10,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    marginTop: 10,
+  },
+  errorMessage: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    textAlign: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#3498db',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

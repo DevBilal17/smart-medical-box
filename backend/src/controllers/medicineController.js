@@ -15,12 +15,12 @@ exports.createMedicine = async (req, res) => {
 exports.getMedicines = async (req, res) => {
   try {
     const { search, category, page = 1, limit = 20 } = req.query;
-    let query = { isActive: true };
+
+    let query = {  };
 
     if (search) {
-      query.$text = { $search: search };
+      query.name = { $regex: search, $options: "i" }; // case insensitive search
     }
-
     if (category) {
       query.category = category;
     }
@@ -42,6 +42,7 @@ exports.getMedicines = async (req, res) => {
         pages: Math.ceil(total / limit)
       }
     });
+
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

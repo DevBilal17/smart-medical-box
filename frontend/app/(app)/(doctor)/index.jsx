@@ -41,7 +41,7 @@ export default function DoctorDashboard() {
   }
 
   // Since transformResponse: (response) => response.data, dashboardData is already the data object
-  const dashboard = dashboardData || {};
+  const dashboard = dashboardData.data || {};
 
   const stats = {
     totalPatients: dashboard.totalPatients || 0,
@@ -49,7 +49,8 @@ export default function DoctorDashboard() {
     pendingAlerts: dashboard.pendingAlerts || 0,
     criticalAlerts: dashboard.criticalAlerts || 0,
     todayAppointments: dashboard.todayAppointments || 0,
-    pendingPrescriptions: dashboard.pendingPrescriptions || 0
+    pendingPrescriptions: dashboard.totalPrescriptions || 0,
+    totalMedicines : dashboard.totalMedicines || 0
   };
 
   const recentPatients = dashboard.recentPatients || [];
@@ -116,20 +117,20 @@ export default function DoctorDashboard() {
 
         <TouchableOpacity 
           style={styles.statCard}
-          onPress={() => router.push('/(app)/(doctor)/alerts')}
+          onPress={() => router.push('/(app)/(doctor)/medicines')}
         >
           <LinearGradient
             colors={['#e74c3c', '#c0392b']}
             style={styles.statGradient}
           >
-            <Icon name="bell" size={30} color="#fff" />
-            <Text style={styles.statValue}>{stats.pendingAlerts}</Text>
-            <Text style={styles.statLabel}>Pending Alerts</Text>
-            {stats.criticalAlerts > 0 && (
+            <Icon name="pill" size={30} color="#fff" />
+            <Text style={styles.statValue}>{stats.totalMedicines}</Text>
+            <Text style={styles.statLabel}>Medicines</Text>
+            {/* {stats.criticalAlerts > 0 && (
               <View style={styles.criticalBadge}>
                 <Text style={styles.criticalText}>{stats.criticalAlerts} critical</Text>
               </View>
-            )}
+            )} */}
           </LinearGradient>
         </TouchableOpacity>
 
@@ -149,7 +150,7 @@ export default function DoctorDashboard() {
       </View>
 
       {/* Today's Schedule */}
-      <View style={styles.scheduleCard}>
+      {/* <View style={styles.scheduleCard}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>Today's Schedule</Text>
           <TouchableOpacity onPress={() => router.push('/(app)/(doctor)/appointments')}>
@@ -191,7 +192,7 @@ export default function DoctorDashboard() {
           <Icon name="plus" size={20} color="#3498db" />
           <Text style={styles.addButtonText}>Add Appointment</Text>
         </TouchableOpacity>
-      </View>
+      </View> */}
 
       {/* Recent Patients */}
       {recentPatients.length > 0 ? (
@@ -241,7 +242,7 @@ export default function DoctorDashboard() {
       )}
 
       {/* Recent Alerts */}
-      {recentAlerts.length > 0 ? (
+      {/* {recentAlerts.length > 0 ? (
         <View style={styles.section}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Recent Alerts</Text>
@@ -288,20 +289,20 @@ export default function DoctorDashboard() {
             <Text style={styles.emptyText}>No recent alerts</Text>
           </View>
         </View>
-      )}
+      )} */}
 
       {/* Quick Actions */}
       <View style={styles.quickActions}>
         <TouchableOpacity 
           style={styles.quickAction}
-          onPress={() => router.push('/(app)/(doctor)/prescriptions/new')}
+          onPress={() => router.push('/(app)/(doctor)/prescriptions')}
         >
           <LinearGradient
             colors={['#3498db', '#2980b9']}
             style={styles.quickActionGradient}
           >
             <Icon name="file-document" size={30} color="#fff" />
-            <Text style={styles.quickActionText}>New Prescription</Text>
+            <Text style={styles.quickActionText}>All Prescriptions</Text>
           </LinearGradient>
         </TouchableOpacity>
 

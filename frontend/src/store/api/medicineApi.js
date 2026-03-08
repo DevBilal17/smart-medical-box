@@ -1,61 +1,64 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { API_BASE_URL } from '../../utils/constants';
+import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import { API_BASE_URL } from "../../utils/constants";
 
 export const medicineApi = createApi({
-  reducerPath: 'medicineApi',
+  reducerPath: "medicineApi",
   baseQuery: fetchBaseQuery({
     baseUrl: `${API_BASE_URL}api`,
     prepareHeaders: (headers, { getState }) => {
       const token = getState().auth?.token;
       if (token) {
-        headers.set('authorization', `Bearer ${token}`);
+        headers.set("authorization", `Bearer ${token}`);
       }
       return headers;
     },
   }),
-  tagTypes: ['Medicine'],
+  tagTypes: ["Medicine"],
   endpoints: (builder) => ({
     // Get all medicines with filters
     getMedicines: builder.query({
-      query: ({ search, category, page = 1, limit = 20 }) => ({
-        url: '/medicines',
+      query: ({ search = "", category = "", page = 1, limit = 20 } = {}) => ({
+        url: "/medicines",
         params: { search, category, page, limit },
       }),
       providesTags: (result) =>
         result?.data
           ? [
-              ...result.data.map(({ _id }) => ({ type: 'Medicine', id: _id })),
-              { type: 'Medicine', id: 'LIST' },
+              ...result.data.map((item) => ({
+                type: "Medicine",
+                id: item._id,
+              })),
+              { type: "Medicine", id: "LIST" },
             ]
-          : [{ type: 'Medicine', id: 'LIST' }],
+          : [{ type: "Medicine", id: "LIST" }],
     }),
 
     // Get single medicine by ID
     getMedicineById: builder.query({
       query: (id) => `/medicines/${id}`,
-      providesTags: (result, error, id) => [{ type: 'Medicine', id }],
+      providesTags: (result, error, id) => [{ type: "Medicine", id }],
     }),
 
     // Add new medicine
     addMedicine: builder.mutation({
       query: (medicine) => ({
-        url: '/medicines',
-        method: 'POST',
+        url: "/medicines",
+        method: "POST",
         body: medicine,
       }),
-      invalidatesTags: [{ type: 'Medicine', id: 'LIST' }],
+      invalidatesTags: [{ type: "Medicine", id: "LIST" }],
     }),
 
     // Update medicine
     updateMedicine: builder.mutation({
       query: ({ id, ...data }) => ({
         url: `/medicines/${id}`,
-        method: 'PUT',
+        method: "PUT",
         body: data,
       }),
       invalidatesTags: (result, error, { id }) => [
-        { type: 'Medicine', id },
-        { type: 'Medicine', id: 'LIST' },
+        { type: "Medicine", id },
+        { type: "Medicine", id: "LIST" },
       ],
     }),
 
@@ -63,9 +66,9 @@ export const medicineApi = createApi({
     deleteMedicine: builder.mutation({
       query: (id) => ({
         url: `/medicines/${id}`,
-        method: 'DELETE',
+        method: "DELETE",
       }),
-      invalidatesTags: [{ type: 'Medicine', id: 'LIST' }],
+      invalidatesTags: [{ type: "Medicine", id: "LIST" }],
     }),
   }),
 });

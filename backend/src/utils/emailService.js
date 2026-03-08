@@ -1,17 +1,16 @@
 const nodemailer = require('nodemailer');
 
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: process.env.EMAIL_PORT,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
-
 const sendEmail = async ({ email, subject, template, data }) => {
   try {
+    // Create transporter using Gmail service (like your first code)
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
     let html = '';
 
     // Simple templates (in production, use a template engine like handlebars)
@@ -23,7 +22,74 @@ const sendEmail = async ({ email, subject, template, data }) => {
         <a href="${data.verificationUrl}">Verify Email</a>
         <p>This link expires in 24 hours.</p>
       `;
-    } else if (template === 'passwordReset') {
+    } 
+    else if(template == 'newPrescription'){
+      html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>New Prescription</title>
+</head>
+
+<body style="font-family: Arial, sans-serif; background:#f4f6f9; padding:20px;">
+
+  <table width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+      <td align="center">
+        
+        <table width="600" style="background:white; padding:30px; border-radius:8px;">
+          
+          <tr>
+            <td align="center">
+              <h2 style="color:#2c3e50;">New Prescription Created</h2>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding-top:20px;">
+              <p>Hello <strong>${data.name}</strong>,</p>
+
+              <p>
+                A new prescription has been created for you by 
+                <strong>Dr. ${data.doctorName}</strong>.
+              </p>
+
+              <p>
+                <strong>Prescribed Medicines:</strong>
+              </p>
+
+              <p style="background:#f7f7f7; padding:10px; border-radius:6px;">
+                ${data.medicines}
+              </p>
+
+              <p>
+                Please make sure to follow the prescribed instructions and take your medicines on time.
+              </p>
+
+              <p>
+                If you have any questions, contact your doctor.
+              </p>
+
+              <br>
+
+              <p>
+                Stay Healthy ❤️<br>
+                <strong>Smart Medicine Reminder System</strong>
+              </p>
+
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>`
+    }
+    else if (template === 'passwordReset') {
       html = `
         <h1>Password Reset Request</h1>
         <p>Hello ${data.name},</p>
@@ -95,20 +161,6 @@ const sendEmail = async ({ email, subject, template, data }) => {
             <p><b>Login Email:</b> ${data.email}</p>
             <p><b>Password:</b> ${data.password}</p>
           </div>
-
-          <p>Please verify your account using the OTP below:</p>
-
-          <div class="box" style="text-align:center">
-            <p>Your Verification OTP</p>
-            <div class="otp">${data.otp}</div>
-          </div>
-
-          <p>This OTP will expire soon.</p>
-
-          <p>After verification, you can login to your account.</p>
-
-          <br>
-
           <p>Best Regards,<br>Smart Medical Box Team</p>
 
         </div>
@@ -226,26 +278,19 @@ const sendEmail = async ({ email, subject, template, data }) => {
                 
                 <p><strong>Steps to reset your password:</strong></p>
                 <ol>
-                    <li>Enter the 6-digit OTP code shown above</li>
+                    <li>Enter the 4-digit OTP code shown above</li>
                     <li>Create a new strong password</li>
                     <li>Confirm your new password</li>
                     <li>You'll be redirected to login with your new password</li>
                 </ol>
                 
-                <p style="text-align: center;">
-                    <a href="${data.resetUrl || '#'}" class="button">Reset Password Now</a>
-                </p>
-                
-                <p>If the button doesn't work, you can also copy and paste this link into your browser:</p>
-                <p style="word-break: break-all; color: #4CAF50;">${data.resetUrl || 'URL will be provided'}</p>
-                
+            
                 <p>Didn't request this password reset?</p>
                 <p>If you didn't request a password reset, please ignore this email or contact support if you have concerns. Your account is still secure.</p>
                 
                 <div class="footer">
                     <p>This is an automated message, please do not reply to this email.</p>
                     <p>&copy; ${new Date().getFullYear()} Smart Medical Box. All rights reserved.</p>
-                    <p>For support, contact: support@smartmedicalbox.com</p>
                 </div>
             </div>
         </div>
@@ -278,7 +323,7 @@ const sendEmail = async ({ email, subject, template, data }) => {
     }
 
     const mailOptions = {
-      from: '"Smart Medical Box" <noreply@smartmedicalbox.com>',
+      from: `"Smart Medical Box" <${process.env.EMAIL_USER}>`, // Using EMAIL_USER from env
       to: email,
       subject,
       html

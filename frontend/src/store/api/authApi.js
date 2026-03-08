@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../../utils/constants';
 // Base query with token handling
 const baseQuery = fetchBaseQuery({
-  baseUrl: 'http://10.173.231.123:5000/api', // Replace with your backend URL
+  baseUrl: `${API_BASE_URL}api`, // Replace with your backend URL
   prepareHeaders: async (headers) => {
     const token = await AsyncStorage.getItem('token');
     if (token) {

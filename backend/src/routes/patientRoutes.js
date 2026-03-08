@@ -9,7 +9,11 @@ const {
   getPrescriptions,
   getAlerts,
   markAlertRead,
-  updateProfile
+  updateProfile,
+  getTodaysMedicines,
+  markMedicineTaken,
+  markMedicineSkipped,
+  getProfile
 } = require('../controllers/patientController');
 
 // All routes require authentication and patient role
@@ -22,6 +26,13 @@ router.post('/health-records', validate(healthRecordValidation), addHealthRecord
 router.get('/prescriptions', getPrescriptions);
 router.get('/alerts', getAlerts);
 router.patch('/alerts/:alertId/read', markAlertRead);
+router.get('/profile', getProfile);
 router.put('/profile', updateProfile);
+
+// TODAY'S MEDICINES ROUTES
+router.get('/medicines/today', getTodaysMedicines);
+// Updated routes with prescriptionId
+router.post('/prescriptions/:prescriptionId/medicines/:medicineId/times/:timeId/taken', markMedicineTaken);
+router.post('/prescriptions/:prescriptionId/medicines/:medicineId/times/:timeId/skipped', markMedicineSkipped);
 
 module.exports = router;

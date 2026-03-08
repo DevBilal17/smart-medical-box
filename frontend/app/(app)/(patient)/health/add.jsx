@@ -17,7 +17,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useAddHealthRecordMutation } from '../../../../src/store/api/patientApi';
-import { getHeartRateStatus, getBloodPressureStatus, getOxygenStatus } from '../../../../src/utils/helpers';
+import { getHeartRateStatus, getBloodPressureStatus } from '../../../../src/utils/helpers';
 
 const healthSchema = z.object({
   heartRate: z.string()
@@ -34,11 +34,6 @@ const healthSchema = z.object({
     .min(1, 'Diastolic pressure is required')
     .refine((val) => !isNaN(val) && val >= 40 && val <= 130, {
       message: 'Diastolic must be between 40-130 mmHg'
-    }),
-  oxygenLevel: z.string()
-    .optional()
-    .refine((val) => !val || (!isNaN(val) && val >= 70 && val <= 100), {
-      message: 'Oxygen level must be between 70-100%'
     }),
   notes: z.string().optional(),
 });
@@ -57,7 +52,6 @@ export default function AddHealthReading() {
       heartRate: '',
       systolic: '',
       diastolic: '',
-      oxygenLevel: '',
       notes: '',
     },
   });
@@ -65,12 +59,10 @@ export default function AddHealthReading() {
   const heartRate = watch('heartRate');
   const systolic = watch('systolic');
   const diastolic = watch('diastolic');
-  const oxygenLevel = watch('oxygenLevel');
 
   const heartRateStatus = heartRate ? getHeartRateStatus(parseInt(heartRate)) : null;
   const bpStatus = systolic && diastolic ? 
     getBloodPressureStatus(parseInt(systolic), parseInt(diastolic)) : null;
-  const oxygenStatus = oxygenLevel ? getOxygenStatus(parseInt(oxygenLevel)) : null;
 
   const onSubmit = async (data) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -80,8 +72,7 @@ export default function AddHealthReading() {
         heartRate: parseInt(data.heartRate),
         systolic: parseInt(data.systolic),
         diastolic: parseInt(data.diastolic),
-        ...(data.oxygenLevel && { oxygenLevel: parseInt(data.oxygenLevel) }),
-        notes: data.notes,
+        notes: data.notes || '',
       };
 
       const response = await addHealthRecord(recordData).unwrap();
@@ -114,7 +105,9 @@ export default function AddHealthReading() {
       <View style={styles.form}>
         {/* Heart Rate Input */}
         <View style={styles.inputCard}>
-          <Text style={styles.label}>Heart Rate (bpm)</Text>
+          <Text style={styles.label}>
+            Heart Rate <Text style={styles.requiredStar}>*</Text>
+          </Text>
           <View style={[styles.inputContainer, errors.heartRate && styles.inputError]}>
             <Icon name="heart" size={24} color="#e74c3c" style={styles.inputIcon} />
             <Controller
@@ -133,19 +126,25 @@ export default function AddHealthReading() {
                 />
               )}
             />
+            <Text style={styles.unitText}>bpm</Text>
           </View>
           {errors.heartRate ? (
             <Text style={styles.errorText}>{errors.heartRate.message}</Text>
           ) : heartRateStatus && (
-            <View style={[styles.statusBadge, { backgroundColor: heartRateStatus.color }]}>
-              <Text style={styles.statusText}>{heartRateStatus.message}</Text>
+            <View style={[styles.statusBadge, { backgroundColor: heartRateStatus.color + '20' }]}>
+              <View style={[styles.statusDot, { backgroundColor: heartRateStatus.color }]} />
+              <Text style={[styles.statusText, { color: heartRateStatus.color }]}>
+                {heartRateStatus.message}
+              </Text>
             </View>
           )}
         </View>
 
         {/* Blood Pressure Input */}
         <View style={styles.inputCard}>
-          <Text style={styles.label}>Blood Pressure (mmHg)</Text>
+          <Text style={styles.label}>
+            Blood Pressure <Text style={styles.requiredStar}>*</Text>
+          </Text>
           <View style={styles.bpContainer}>
             <View style={[styles.bpInput, errors.systolic && styles.inputError]}>
               <Icon name="water" size={24} color="#3498db" style={styles.inputIcon} />
@@ -184,44 +183,23 @@ export default function AddHealthReading() {
                   />
                 )}
               />
+              <Text style={styles.unitText}>mmHg</Text>
             </View>
           </View>
-          {errors.systolic && <Text style={styles.errorText}>{errors.systolic.message}</Text>}
-          {errors.diastolic && <Text style={styles.errorText}>{errors.diastolic.message}</Text>}
-          {bpStatus && !errors.systolic && !errors.diastolic && (
-            <View style={[styles.statusBadge, { backgroundColor: bpStatus.color }]}>
-              <Text style={styles.statusText}>{bpStatus.message}</Text>
+          
+          {(errors.systolic || errors.diastolic) && (
+            <View style={styles.errorContainer}>
+              {errors.systolic && <Text style={styles.errorText}>• {errors.systolic.message}</Text>}
+              {errors.diastolic && <Text style={styles.errorText}>• {errors.diastolic.message}</Text>}
             </View>
           )}
-        </View>
-
-        {/* Oxygen Level Input */}
-        <View style={styles.inputCard}>
-          <Text style={styles.label}>Oxygen Level (%) (Optional)</Text>
-          <View style={[styles.inputContainer, errors.oxygenLevel && styles.inputError]}>
-            <Icon name="lungs" size={24} color="#2ecc71" style={styles.inputIcon} />
-            <Controller
-              control={control}
-              name="oxygenLevel"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter oxygen level"
-                  placeholderTextColor="#95a5a6"
-                  onBlur={onBlur}
-                  onChangeText={onChange}
-                  value={value}
-                  keyboardType="numeric"
-                  maxLength={3}
-                />
-              )}
-            />
-          </View>
-          {errors.oxygenLevel ? (
-            <Text style={styles.errorText}>{errors.oxygenLevel.message}</Text>
-          ) : oxygenStatus && (
-            <View style={[styles.statusBadge, { backgroundColor: oxygenStatus.color }]}>
-              <Text style={styles.statusText}>{oxygenStatus.message}</Text>
+          
+          {bpStatus && !errors.systolic && !errors.diastolic && (
+            <View style={[styles.statusBadge, { backgroundColor: bpStatus.color + '20' }]}>
+              <View style={[styles.statusDot, { backgroundColor: bpStatus.color }]} />
+              <Text style={[styles.statusText, { color: bpStatus.color }]}>
+                {bpStatus.message}
+              </Text>
             </View>
           )}
         </View>
@@ -237,13 +215,13 @@ export default function AddHealthReading() {
               render={({ field: { onChange, onBlur, value } }) => (
                 <TextInput
                   style={[styles.input, styles.textArea]}
-                  placeholder="Add any notes..."
+                  placeholder="Add any notes (e.g., after exercise, feeling dizzy, etc.)"
                   placeholderTextColor="#95a5a6"
                   onBlur={onBlur}
                   onChangeText={onChange}
                   value={value}
                   multiline
-                  numberOfLines={4}
+                  numberOfLines={3}
                   textAlignVertical="top"
                 />
               )}
@@ -255,20 +233,37 @@ export default function AddHealthReading() {
         <View style={styles.tipsCard}>
           <Text style={styles.tipsTitle}>📋 Tips for accurate reading:</Text>
           <View style={styles.tipItem}>
-            <Icon name="check-circle" size={16} color="#2ecc71" />
+            <Icon name="check-circle" size={18} color="#2ecc71" />
             <Text style={styles.tipText}>Rest for 5 minutes before measuring</Text>
           </View>
           <View style={styles.tipItem}>
-            <Icon name="check-circle" size={16} color="#2ecc71" />
+            <Icon name="check-circle" size={18} color="#2ecc71" />
             <Text style={styles.tipText}>Sit comfortably with feet flat on floor</Text>
           </View>
           <View style={styles.tipItem}>
-            <Icon name="check-circle" size={16} color="#2ecc71" />
+            <Icon name="check-circle" size={18} color="#2ecc71" />
             <Text style={styles.tipText}>Place cuff on bare arm at heart level</Text>
           </View>
           <View style={styles.tipItem}>
-            <Icon name="check-circle" size={16} color="#2ecc71" />
-            <Text style={styles.tipText}>Don't talk during measurement</Text>
+            <Icon name="check-circle" size={18} color="#2ecc71" />
+            <Text style={styles.tipText}>Don't talk or move during measurement</Text>
+          </View>
+          <View style={styles.tipItem}>
+            <Icon name="information" size={18} color="#3498db" />
+            <Text style={styles.tipText}>Take 2-3 readings and average them</Text>
+          </View>
+        </View>
+
+        {/* Normal Ranges Info */}
+        <View style={styles.rangesCard}>
+          <Text style={styles.rangesTitle}>📊 Normal Ranges:</Text>
+          <View style={styles.rangeItem}>
+            <View style={[styles.rangeDot, { backgroundColor: '#2ecc71' }]} />
+            <Text style={styles.rangeText}>Heart Rate: 60-100 bpm</Text>
+          </View>
+          <View style={styles.rangeItem}>
+            <View style={[styles.rangeDot, { backgroundColor: '#2ecc71' }]} />
+            <Text style={styles.rangeText}>Blood Pressure: 90-120 / 60-80 mmHg</Text>
           </View>
         </View>
 
@@ -286,7 +281,7 @@ export default function AddHealthReading() {
               <ActivityIndicator color="#fff" />
             ) : (
               <>
-                <Icon name="check" size={24} color="#fff" />
+                <Icon name="heart-plus" size={24} color="#fff" />
                 <Text style={styles.submitText}>Save Reading</Text>
               </>
             )}
@@ -316,6 +311,7 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 20,
   },
   title: {
     fontSize: 20,
@@ -327,60 +323,79 @@ const styles = StyleSheet.create({
   },
   inputCard: {
     backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 15,
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    position: 'relative',
   },
   label: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: '#2c3e50',
     marginBottom: 10,
+  },
+  requiredStar: {
+    color: '#e74c3c',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#e0e0e0',
-    borderRadius: 8,
-    backgroundColor: '#fff',
+    borderRadius: 12,
+    backgroundColor: '#f8f9fa',
   },
   inputIcon: {
-    padding: 10,
+    padding: 12,
   },
   input: {
     flex: 1,
     paddingVertical: 12,
-    paddingRight: 10,
     fontSize: 16,
     color: '#2c3e50',
   },
+  unitText: {
+    paddingRight: 12,
+    color: '#7f8c8d',
+    fontSize: 14,
+    fontWeight: '500',
+  },
   inputError: {
     borderColor: '#e74c3c',
+    borderWidth: 1.5,
   },
   errorText: {
     color: '#e74c3c',
     fontSize: 12,
     marginTop: 5,
+    marginLeft: 5,
+  },
+  errorContainer: {
+    marginTop: 8,
+    paddingLeft: 5,
   },
   statusBadge: {
-    position: 'absolute',
-    top: 15,
-    right: 15,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
   },
   statusText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '500',
   },
   bpContainer: {
     flexDirection: 'row',
@@ -392,14 +407,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#e0e0e0',
-    borderRadius: 8,
-    backgroundColor: '#fff',
+    borderRadius: 12,
+    backgroundColor: '#f8f9fa',
   },
   bpSeparator: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#2c3e50',
-    marginHorizontal: 10,
+    marginHorizontal: 12,
   },
   textArea: {
     minHeight: 80,
@@ -407,38 +422,74 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   tipsCard: {
-    backgroundColor: '#3498db10',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 20,
+    backgroundColor: '#f0f9ff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#d0e6f5',
   },
   tipsTitle: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
-    color: '#3498db',
-    marginBottom: 10,
+    color: '#2c3e50',
+    marginBottom: 12,
   },
   tipItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 5,
+    marginVertical: 6,
   },
   tipText: {
-    marginLeft: 10,
-    fontSize: 12,
-    color: '#2c3e50',
+    marginLeft: 12,
+    fontSize: 14,
+    color: '#34495e',
     flex: 1,
   },
+  rangesCard: {
+    backgroundColor: '#f0fff4',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#d0f0d0',
+  },
+  rangesTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 12,
+  },
+  rangeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  rangeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 10,
+  },
+  rangeText: {
+    fontSize: 14,
+    color: '#34495e',
+  },
   submitButton: {
-    borderRadius: 10,
+    borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 30,
+    shadowColor: '#3498db',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   submitGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 15,
+    padding: 16,
   },
   submitText: {
     color: '#fff',

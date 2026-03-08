@@ -33,7 +33,7 @@ export const doctorApi = createApi({
     getDoctorDashboard: builder.query({
       query: () => "/dashboard",
       providesTags: ["Dashboard"],
-      transformResponse: (response) => response.data,
+      // transformResponse: (response) => response.data,
     }),
 
     // ========== PATIENTS ==========
@@ -363,6 +363,68 @@ export const doctorApi = createApi({
       transformResponse: (response) => response.data,
     }),
 
+    // Medicines
+    // Add this new endpoint
+    getPrescriptionMedicines: builder.query({
+      query: (prescriptionId) => `/prescriptions/${prescriptionId}/medicines`,
+      providesTags: (result, error, prescriptionId) => [
+        { type: "Prescriptions", id: prescriptionId },
+        { type: "Prescriptions", id: "MEDICINES" },
+      ],
+      transformResponse: (response) => response.data || response,
+      // Only run the query if we have an ID
+      keepUnusedDataFor: 300, // 5 minutes
+    }),
+
+    // Optional: Add medicine-specific endpoints
+    addPrescriptionMedicine: builder.mutation({
+      query: ({ prescriptionId, medicineData }) => ({
+        url: `/prescriptions/${prescriptionId}/medicines`,
+        method: "POST",
+        body: medicineData,
+      }),
+      invalidatesTags: (result, error, { prescriptionId }) => [
+        { type: "Prescriptions", id: prescriptionId },
+        { type: "Prescriptions", id: "LIST" },
+        { type: "PatientDetails", id: result?.patientId },
+      ],
+      transformResponse: (response) => response.data,
+    }),
+
+    updatePrescriptionMedicine: builder.mutation({
+      query: ({ prescriptionId, medicineId, ...updates }) => ({
+        url: `/prescriptions/${prescriptionId}/medicines/${medicineId}`,
+        method: "PUT",
+        body: updates,
+      }),
+      invalidatesTags: (result, error, { prescriptionId }) => [
+        { type: "Prescriptions", id: prescriptionId },
+      ],
+      transformResponse: (response) => response.data,
+    }),
+
+    deletePrescriptionMedicine: builder.mutation({
+      query: ({ prescriptionId, medicineId }) => ({
+        url: `/prescriptions/${prescriptionId}/medicines/${medicineId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (result, error, { prescriptionId }) => [
+        { type: "Prescriptions", id: prescriptionId },
+      ],
+    }),
+
+    reorderPrescriptionMedicines: builder.mutation({
+      query: ({ prescriptionId, medicineOrder }) => ({
+        url: `/prescriptions/${prescriptionId}/medicines/reorder`,
+        method: "POST",
+        body: { medicineOrder },
+      }),
+      invalidatesTags: (result, error, { prescriptionId }) => [
+        { type: "Prescriptions", id: prescriptionId },
+      ],
+      transformResponse: (response) => response.data,
+    }),
+
     // ========== ALERTS ==========
     getDoctorAlerts: builder.query({
       query: ({ status, severity, patientId, page = 1, limit = 50 }) => {
@@ -620,6 +682,9 @@ export const {
   useRenewPrescriptionMutation,
   useGetPrescriptionTemplatesQuery,
   useCreatePrescriptionTemplateMutation,
+
+  // Medicines
+  useGetPrescriptionMedicinesQuery,
 
   // Alerts
   useGetDoctorAlertsQuery,

@@ -77,7 +77,7 @@ export default function PrescriptionsList() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={[styles.header,{}]}>
         <TouchableOpacity onPress={() => router.back()}>
           <Icon name="arrow-left" size={24} color="#2c3e50" />
         </TouchableOpacity>
@@ -85,7 +85,7 @@ export default function PrescriptionsList() {
         <TouchableOpacity
           onPress={() => router.push("/(app)/(doctor)/prescriptions/new")}
         >
-          <Icon name="plus" size={24} color="#3498db" />
+          {/* <Icon name="plus" size={24} color="#3498db" /> */}
         </TouchableOpacity>
       </View>
 
@@ -117,7 +117,7 @@ export default function PrescriptionsList() {
         showsHorizontalScrollIndicator={false}
         style={styles.filterContainer}
       >
-        {["all", "active", "completed", "cancelled"].map((status) => (
+        {["all", "active", "completed"].map((status) => (
           <TouchableOpacity
             key={status}
             style={[
@@ -168,7 +168,7 @@ export default function PrescriptionsList() {
         {filteredPrescriptions.length > 0 ? (
           filteredPrescriptions.map((prescription) => (
             <TouchableOpacity
-              key={prescription.id}
+              key={prescription._id}
               style={styles.prescriptionCard}
               onPress={() =>
                 router.push({
@@ -279,7 +279,7 @@ export default function PrescriptionsList() {
       </ScrollView>
 
       {/* Floating Action Button */}
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={styles.fab}
         onPress={() => router.push("/(app)/(doctor)/prescriptions/new")}
       >
@@ -289,7 +289,7 @@ export default function PrescriptionsList() {
         >
           <Icon name="plus" size={24} color="#fff" />
         </LinearGradient>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </View>
   );
 }
