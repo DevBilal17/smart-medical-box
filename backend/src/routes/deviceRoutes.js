@@ -1,21 +1,28 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateDevice, protect } = require('../middleware/auth');
+
 const {
   registerDevice,
-  updateDeviceStatus,
-  receiveSensorData,
-  medicineTaken,
-  getDeviceSchedule,
-  triggerAlarm
+  updateDeviceIP,
+  getDevice,
+  getSchedule,
+  medicineTaken
 } = require('../controllers/deviceController');
+const { protect } = require('../middleware/auth');
 
-// Device routes (with device token)
-router.post('/register', protect, registerDevice);
-router.post('/status', authenticateDevice, updateDeviceStatus);
-router.post('/sensor-data', authenticateDevice, receiveSensorData);
-router.post('/medicine-taken', authenticateDevice, medicineTaken);
-router.get('/schedule', authenticateDevice, getDeviceSchedule);
-router.post('/trigger-alarm', authenticateDevice, triggerAlarm);
+// 🔵 Pair device
+router.post('/register', protect,registerDevice);
+
+// 🔵 ESP32 updates IP after WiFi connect
+router.post('/update-ip', updateDeviceIP);
+
+// 🔵 Mobile fetch device
+router.get('/:deviceId', getDevice);
+
+// 🔵 ESP32 fetch schedule
+router.get('/:deviceId/schedule', getSchedule);
+
+// 🔵 Medicine confirmation
+router.post('/medicine-taken', medicineTaken);
 
 module.exports = router;

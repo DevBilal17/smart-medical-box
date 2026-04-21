@@ -17,6 +17,7 @@ const {
 } = require('../controllers/patientController');
 
 // All routes require authentication and patient role
+router.get('/today-medicine-all')
 router.use(protect);
 router.use(authorize('patient'));
 
